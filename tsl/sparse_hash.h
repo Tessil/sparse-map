@@ -234,7 +234,7 @@ public:
     static_assert(is_power_of_two(BITMAP_NB_BITS), "BITMAP_NB_BITS must be a power of two.");
     static_assert(std::numeric_limits<bitmap_type>::digits >= BITMAP_NB_BITS, 
                         "bitmap_type must be able to hold at least BITMAP_NB_BITS.");
-    static_assert((1 << SHIFT) == BITMAP_NB_BITS, "(1 << SHIFT) must be equal to BITMAP_NB_BITS.");
+    static_assert((std::size_t(1) << SHIFT) == BITMAP_NB_BITS, "(1 << SHIFT) must be equal to BITMAP_NB_BITS.");
     
 public:
     sparse_array() noexcept: m_values(nullptr), m_bitmap_vals(0), m_bitmap_deleted_vals(0), 
@@ -445,7 +445,7 @@ private:
     
     static size_type popcount(bitmap_type val) noexcept {
         if(sizeof(bitmap_type) <= sizeof(unsigned int)) {
-            return static_cast<size_type>(tsl::detail_sparse_hash::popcount(val));
+            return static_cast<size_type>(tsl::detail_sparse_hash::popcount(static_cast<unsigned int>(val)));
         }
         else {
             return static_cast<size_type>(tsl::detail_sparse_hash::popcountll(val));
@@ -789,7 +789,7 @@ public:
          * value T to be copyable.
          */
         const size_type nb_sparse_buckets = std::max(size_type(1), 
-                                                     round_up_to_power_of_two(bucket_count) >> sparse_array::SHIFT);
+                                                     tsl::detail_sparse_hash::round_up_to_power_of_two(bucket_count) >> sparse_array::SHIFT);
         m_sparse_buckets.resize(nb_sparse_buckets);
         m_sparse_buckets.back().set_as_last();
         
