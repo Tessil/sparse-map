@@ -137,11 +137,15 @@ inline bool has_popcount_support() {
 }
 
 inline int popcountll(unsigned long long int value) {
+#ifdef  _WIN64
     static_assert(sizeof(unsigned long long int) == sizeof(std::int64_t),
         "sizeof(unsigned long long int) must be equal to sizeof(std::int64_t). ");
 
     static const bool has_popcount = has_popcount_support();
     return has_popcount?static_cast<int>(__popcnt64(static_cast<std::int64_t>(value))):default_popcountll(value);
+#else
+    return default_popcountll(value);
+#endif
 }
 
 inline int popcount(unsigned int value) {
