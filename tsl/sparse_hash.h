@@ -71,6 +71,12 @@ namespace sh {
         basic,
         strong
     };    
+    
+    enum class sparsity {
+        high,
+        medium,
+        low
+    };
 }
 
 
@@ -241,7 +247,7 @@ inline std::size_t round_up_to_power_of_two(std::size_t value) {
  * 
  * TODO Check to use std::realloc and std::memmove when possible
  */
-template<typename T, typename Allocator>
+template<typename T, typename Allocator, tsl::sh::sparsity Sparsity>
 class sparse_array {
 public:
     using value_type = T;
@@ -260,13 +266,17 @@ public:
     static const std::size_t BITMAP_NB_BITS = 32;
     static const std::size_t SHIFT = 5;
     static const std::size_t MASK = BITMAP_NB_BITS - 1;
-    static const size_type CAPACITY_GROWTH_STEP = 4;
+    static const size_type CAPACITY_GROWTH_STEP = (Sparsity == tsl::sh::sparsity::high)?2:
+                                                  (Sparsity == tsl::sh::sparsity::medium)?4:
+                                                  8; // (Sparsity == tsl::sh::sparsity::low)
 #else
     using bitmap_type = std::uint_least64_t;
     static const std::size_t BITMAP_NB_BITS = 64;
     static const std::size_t SHIFT = 6;
     static const std::size_t MASK = BITMAP_NB_BITS - 1;
-    static const size_type CAPACITY_GROWTH_STEP = 8;
+    static const size_type CAPACITY_GROWTH_STEP = (Sparsity == tsl::sh::sparsity::high)?2:
+                                                  (Sparsity == tsl::sh::sparsity::medium)?8:
+                                                  16; // (Sparsity == tsl::sh::sparsity::low)
 #endif    
     
     static_assert(is_power_of_two(BITMAP_NB_BITS), "BITMAP_NB_BITS must be a power of two.");
@@ -661,6 +671,7 @@ template<class ValueType,
          class Allocator,
          class GrowthPolicy,
          tsl::sh::exception_safety ExceptionSafety,
+         tsl::sh::sparsity Sparsity,
          tsl::sh::probing Probing>
 class sparse_hash: private Allocator, private Hash, private KeyEqual, private GrowthPolicy {
 private:    
@@ -693,7 +704,7 @@ public:
         
     
 private:
-    using sparse_array = tsl::detail_sparse_hash::sparse_array<ValueType, Allocator>;
+    using sparse_array = tsl::detail_sparse_hash::sparse_array<ValueType, Allocator, Sparsity>;
     
     using sparse_buckets_allocator = 
                             typename std::allocator_traits<allocator_type>::template rebind_alloc<sparse_array>;

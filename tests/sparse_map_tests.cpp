@@ -56,7 +56,7 @@ using test_types = boost::mpl::list<
                         tsl::sparse_map<copy_only_test, copy_only_test, mod_hash<9>>,
                         tsl::sparse_map<self_reference_member_test, self_reference_member_test, mod_hash<9>>,
                         
-                        // other GrowthPolicy
+                        // Others GrowthPolicy
                         tsl::sparse_map<move_only_test, move_only_test, mod_hash<9>, std::equal_to<move_only_test>,
                                         std::allocator<std::pair<move_only_test, move_only_test>>,
                                         tsl::sh::power_of_two_growth_policy<4>>,
@@ -71,7 +71,25 @@ using test_types = boost::mpl::list<
                         tsl::sparse_pg_map<copy_only_test, copy_only_test, mod_hash<9>>,
                         tsl::sparse_map<copy_only_test, copy_only_test, mod_hash<9>, std::equal_to<copy_only_test>,
                                         std::allocator<std::pair<copy_only_test, copy_only_test>>,
-                                        tsl::sh::mod_growth_policy<>>
+                                        tsl::sh::mod_growth_policy<>>,
+                                        
+                        // Strong exception guarantee
+                        tsl::sparse_map<std::string, std::string, mod_hash<9>, std::equal_to<std::string>,
+                                        std::allocator<std::pair<std::string, std::string>>,
+                                        tsl::sh::power_of_two_growth_policy<2>,
+                                        tsl::sh::exception_safety::strong>,
+                                        
+                        // Others sparsity
+                        tsl::sparse_map<std::string, std::string, mod_hash<9>, std::equal_to<std::string>,
+                                        std::allocator<std::pair<std::string, std::string>>,
+                                        tsl::sh::power_of_two_growth_policy<2>,
+                                        tsl::sh::exception_safety::basic,
+                                        tsl::sh::sparsity::high>,
+                        tsl::sparse_map<std::string, std::string, mod_hash<9>, std::equal_to<std::string>,
+                                        std::allocator<std::pair<std::string, std::string>>,
+                                        tsl::sh::power_of_two_growth_policy<2>,
+                                        tsl::sh::exception_safety::basic,
+                                        tsl::sh::sparsity::low>
                     >;
                                     
 

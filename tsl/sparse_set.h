@@ -40,7 +40,9 @@ template<class Key,
          class Hash = std::hash<Key>,
          class KeyEqual = std::equal_to<Key>,
          class Allocator = std::allocator<Key>,
-         class GrowthPolicy = tsl::sh::power_of_two_growth_policy<2>>
+         class GrowthPolicy = tsl::sh::power_of_two_growth_policy<2>,
+         tsl::sh::exception_safety ExceptionSafety = tsl::sh::exception_safety::basic,
+         tsl::sh::sparsity Sparsity = tsl::sh::sparsity::medium>
 class sparse_set {
 private:
     template<typename U>
@@ -60,7 +62,8 @@ private:
     };
     
     using ht = detail_sparse_hash::sparse_hash<Key, KeySelect, void, Hash, KeyEqual, Allocator, GrowthPolicy, 
-                                               tsl::sh::exception_safety::basic, tsl::sh::probing::quadratic>;
+                                               ExceptionSafety, Sparsity,
+                                               tsl::sh::probing::quadratic>;
             
 public:
     using key_type = typename ht::key_type;
