@@ -36,6 +36,38 @@
 
 namespace tsl {
 
+    
+/**
+ * Implementation of a sparse hash map using open-adressing with quadratic probing.
+ * The goal on the hash map is to be the most memory efficient possible, even at low load factor,
+ * while keeping reasonable performances.
+ * 
+ * `GrowthPolicy` defines how the map grows and consequently how a hash value is mapped to a bucket. 
+ * By default the map uses `tsl::sh::power_of_two_growth_policy`. This policy keeps the number of buckets 
+ * to a power of two and uses a mask to map the hash to a bucket instead of the slow modulo.
+ * Other growth policies are available and you may define your own growth policy, 
+ * check `tsl::sh::power_of_two_growth_policy` for the interface.
+ * 
+ * `ExceptionSafety` defines the exception guarantee provided by the class. By default only the basic
+ * exception safety is guaranteed which mean that all ressources used by the hash map will be freed (no memory leaks) 
+ * but the hash map may end-up in an undefined state if an exception is thrown (undefined here means that some elements  
+ * may be missing). It will happen if the Allocator can't allocate memory (`std::bad_alloc`) or if the move constructor 
+ * (or copy constructor if not available) throws and exception. This basic guarantee is similar to the one 
+ * of `google::sparse_hash_map` and `spp::sparse_hash_map`.
+ * It is possible to ask for the strong exception guarantee with `tsl::sh::exception_safety::strong`, the drawback
+ * is that the map will be slower on rehashes and will also need more memory on rehashes.
+ * 
+ * `Sparsity` defines how much the hash map will compromise between insertion speed and memory usage. A high
+ * sparsity means less memory but longer insertion times, and vice-versa for low sparsity. The default medium
+ * offers a good compromise. It doesn't change the lookups speed.
+ * 
+ * If the destructor of `Key` or `T` throws an exception, the behaviour of the class is undefined.
+ * 
+ * Iterators invalidation:
+ *  - clear, operator=, reserve, rehash: always invalidate the iterators.
+ *  - insert, emplace, emplace_hint, operator[]: if there is an effective insert, invalidate the iterators.
+ *  - erase: always invalidate the iterators.
+ */
 template<class Key, 
          class T, 
          class Hash = std::hash<Key>,

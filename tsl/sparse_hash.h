@@ -663,6 +663,21 @@ private:
 };
 
 
+/**
+ * Internal common class used by `sparse_map` and `sparse_set`. 
+ * 
+ * ValueType is what will be stored by `sparse_hash` (usually `std::pair<Key, T>` for map and `Key` for set).
+ * 
+ * `KeySelect` should be a `FunctionObject` which takes a `ValueType` in parameter and returns a 
+ *  reference to the key.
+ * 
+ * `ValueSelect` should be a `FunctionObject` which takes a `ValueType` in parameter and returns a 
+ *  reference to the value. `ValueSelect` should be void if there is no value (in a set for example).
+ * 
+ * The strong exception guarantee only holds if `ExceptionSafety` is set to `tsl::sh::exception_safety::strong`.
+ * 
+ * Behaviour is undefined if the destructor of `ValueType` throws.
+ */
 template<class ValueType,
          class KeySelect,
          class ValueSelect,
@@ -1488,6 +1503,7 @@ private:
                 new_table.insert(std::move(val));
             }
             
+            // TODO try to reuse some of the memory
             bucket.clear(*this);
         }
         
