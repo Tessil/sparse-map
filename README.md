@@ -1,9 +1,50 @@
+[![Build Status](https://travis-ci.org/Tessil/sparse-map.svg?branch=master)](https://travis-ci.org/Tessil/sparse-map) [![Build status](https://ci.appveyor.com/api/projects/status/l52jl1eslsvudu6a/branch/master?svg=true)](https://ci.appveyor.com/project/Tessil/sparse-map/branch/master)
+
 ## A C++ implementation of a memory efficient hash map and hash set
 
-**The library is still in alpha stage.**
-
+The sparse-map library is a C++ implementation of a memory efficient hash map and hash set. It uses open-adressing with quadratic probing. The goal of the library is to be the most memory efficient possible, even at low load factor, while keeping reasonable performances.
 
 Four classes are provided: `tsl::sparse_map`, `tsl::sparse_set`, `tsl::sparse_pg_map` and `tsl::sparse_pg_set`. The first two are faster and use a power of two growth policy, the last two use a prime growth policy instead and are able to cope better with a poor hash function. Use the prime version if there is a chance of repeating patterns in the lower bits of your hash (e.g. you are storing pointers with an identity hash function). See [GrowthPolicy](#growth-policy) for details.
+
+A **benchmark** of `tsl::sparse_map` against other hash maps may be found [here](https://tessil.github.io/2016/08/29/benchmark-hopscotch-map.html). This page also gives some advices on which hash table structure you should try for your use case (useful if you are a bit lost with the multiple hash tables implementations in the `tsl` namespace).
+
+### Key features
+
+- Header-only library, just include the project to your include path and you are ready to go.
+- Memory efficient while keeping good loopkups speed, see the [benchmark](https://tessil.github.io/2016/08/29/benchmark-hopscotch-map.html) for some numbers.
+- Support for heterogeneous lookups (e.g. if you have a map that uses `std::unique_ptr<int>` as key, you could use an `int*` or a `std::uintptr_t` as key parameter to `find`, see [example](#heterogeneous-lookups)).
+- No need to reserve any sentinel value from the keys.
+- If the hash is known before a lookup, it is possible to pass it as parameter to speed-up the lookup.
+- Possibility to control the balance between insertion speed and memory usage with the `Sparsity` template parameter. A high sparsity means less memory but longer insertion times, and vice-versa for low sparsity. The default medium offers a good compromise (see [API](https://tessil.github.io/sparse-map/classtsl_1_1sparse__map.html#details) for details). For reference, with simple integers as keys and values, a low sparsity offers ~15% faster insertions times but uses ~12% more memory. Nothing change regarding lookups speed.
+- API closely similar to `std::unordered_map` and `std::unordered_set`.
+
+### Differences compare to `std::unordered_map`
+
+`tsl::sparse_map` tries to have an interface similar to `std::unordered_map`, but some differences exist.
+- By default only the basic exception safety is guaranteed which mean that all ressources used by the hash map will be freed (no memory leaks). It is the same guarantee that the one provided by `google::sparse_hash_map` and `spp::sparse_hash_map`. If you need the strong exception guarantee, check the `ExceptionSafety` template parameter (see [API](https://tessil.github.io/sparse-map/classtsl_1_1sparse__map.html#details) for details).
+- Iterator invalidation doesn't behave in the same way, any operation modifying the hash table invalidate them (see [API](https://tessil.github.io/sparse-map/classtsl_1_1sparse__map.html#details) for details).
+- References and pointers to keys or values in the map are invalidated in the same way as iterators to these keys-values.
+- For iterators, `operator*()` and `operator->()` return a reference and a pointer to `const std::pair<Key, T>` instead of `std::pair<const Key, T>` making the value `T` not modifiable. To modify the value you have to call the `value()` method of the iterator to get a mutable reference. Example:
+```c++
+tsl::sparse_map<int, int> map = {{1, 1}, {2, 1}, {3, 1}};
+for(auto it = map.begin(); it != map.end(); ++it) {
+    //it->second = 2; // Illegal
+    it.value() = 2; // Ok
+}
+```
+- No support for some buckets related methods (like bucket_size, bucket, ...).
+
+These differences also apply between `std::unordered_set` and `tsl::sparse_set`.
+
+Thread-safety guarantees are the same as `std::unordered_map/set` (i.e. possible to have multiple readers with no writer).
+
+### Optimization
+
+The library relies heavily on the [popcount](https://en.wikipedia.org/wiki/Hamming_weight) operation. 
+
+With Clang and GCC, the library uses the `__builtin_popcount` function which will use the fast CPU instruction `POPCNT` when the library is compiled with `-mpopcnt`. Using the `POPCNT` instruction offfers an improvement of ~15% to ~30% on lookups. So if you are compiling your code for a specific architecture that support the operation, don't forget the `-mpopcnt` (or `-march=native`) flag of your compiler.
+
+On Windows with MSVC, the detection is done at runtime.
 
 ### Growth policy
 
