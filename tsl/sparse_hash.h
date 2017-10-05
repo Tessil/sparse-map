@@ -27,6 +27,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <climits>
 #include <cmath>
 #include <cstdint>
 #include <cstddef>
@@ -266,17 +267,11 @@ public:
     static const std::size_t BITMAP_NB_BITS = 32;
     static const std::size_t SHIFT = 5;
     static const std::size_t MASK = BITMAP_NB_BITS - 1;
-    static const size_type CAPACITY_GROWTH_STEP = (Sparsity == tsl::sh::sparsity::high)?2:
-                                                  (Sparsity == tsl::sh::sparsity::medium)?4:
-                                                  8; // (Sparsity == tsl::sh::sparsity::low)
 #else
     using bitmap_type = std::uint_least64_t;
     static const std::size_t BITMAP_NB_BITS = 64;
     static const std::size_t SHIFT = 6;
     static const std::size_t MASK = BITMAP_NB_BITS - 1;
-    static const size_type CAPACITY_GROWTH_STEP = (Sparsity == tsl::sh::sparsity::high)?2:
-                                                  (Sparsity == tsl::sh::sparsity::medium)?8:
-                                                  16; // (Sparsity == tsl::sh::sparsity::low)
 #endif    
     
     static_assert(is_power_of_two(BITMAP_NB_BITS), "BITMAP_NB_BITS must be a power of two.");
@@ -284,6 +279,11 @@ public:
                         "bitmap_type must be able to hold at least BITMAP_NB_BITS.");
     static_assert((std::size_t(1) << SHIFT) == BITMAP_NB_BITS, "(1 << SHIFT) must be equal to BITMAP_NB_BITS.");
     
+private:    
+    static const size_type CAPACITY_GROWTH_STEP = (Sparsity == tsl::sh::sparsity::high)?2:
+                                                  (Sparsity == tsl::sh::sparsity::medium)?4:
+                                                  8; // (Sparsity == tsl::sh::sparsity::low)
+                                                  
 public:
     sparse_array() noexcept: m_values(nullptr), m_bitmap_vals(0), m_bitmap_deleted_vals(0), 
                              m_nb_elements(0), m_capacity(0), m_last_array(false)
