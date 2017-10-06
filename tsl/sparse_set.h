@@ -38,7 +38,7 @@ namespace tsl {
 
     
 /**
- * Implementation of a sparse hash set using open-adressing with quadratic probing.
+ * Implementation of a sparse hash set using open-addressing with quadratic probing.
  * The goal on the hash set is to be the most memory efficient possible, even at low load factor,
  * while keeping reasonable performances.
  * 
@@ -49,7 +49,7 @@ namespace tsl {
  * check `tsl::sh::power_of_two_growth_policy` for the interface.
  * 
  * `ExceptionSafety` defines the exception guarantee provided by the class. By default only the basic
- * exception safety is guaranteed which mean that all ressources used by the hash set will be freed (no memory leaks) 
+ * exception safety is guaranteed which mean that all resources used by the hash set will be freed (no memory leaks) 
  * but the hash set may end-up in an undefined state if an exception is thrown (undefined here means that some elements  
  * may be missing). It will happen if the Allocator can't allocate memory (`std::bad_alloc`) or if the move constructor 
  * (or copy constructor if not available) throws and exception. This basic guarantee is similar to the one 
@@ -59,7 +59,7 @@ namespace tsl {
  * 
  * `Sparsity` defines how much the hash set will compromise between insertion speed and memory usage. A high
  * sparsity means less memory but longer insertion times, and vice-versa for low sparsity. The default medium
- * offers a good compromise. It doesn't change the lookups speed.
+ * sparsity offers a good compromise. It doesn't change the lookups speed.
  * 
  * If the destructor of `Key` throws an exception, the behaviour of the class is undefined.
  * 
