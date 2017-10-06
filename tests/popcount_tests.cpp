@@ -70,41 +70,41 @@ BOOST_AUTO_TEST_CASE(test_popcountll_1) {
     BOOST_CHECK_EQUAL(tsl::detail_popcount::popcountll(value), 64);
 }
 
-BOOST_AUTO_TEST_CASE(test_default_popcount_1) {
+BOOST_AUTO_TEST_CASE(test_fallback_popcount_1) {
     std::uint32_t value = 0;
-    BOOST_CHECK_EQUAL(tsl::detail_popcount::default_popcount(value), 0);
+    BOOST_CHECK_EQUAL(tsl::detail_popcount::fallback_popcount(value), 0);
     
     value = 1;
-    BOOST_CHECK_EQUAL(tsl::detail_popcount::default_popcount(value), 1);
+    BOOST_CHECK_EQUAL(tsl::detail_popcount::fallback_popcount(value), 1);
     
     value = 2;
-    BOOST_CHECK_EQUAL(tsl::detail_popcount::default_popcount(value), 1);
+    BOOST_CHECK_EQUAL(tsl::detail_popcount::fallback_popcount(value), 1);
     
     value = 294967496;
-    BOOST_CHECK_EQUAL(tsl::detail_popcount::default_popcount(value), 12);
+    BOOST_CHECK_EQUAL(tsl::detail_popcount::fallback_popcount(value), 12);
     
     value = std::numeric_limits<std::uint32_t>::max();
-    BOOST_CHECK_EQUAL(tsl::detail_popcount::default_popcount(value), 32);
+    BOOST_CHECK_EQUAL(tsl::detail_popcount::fallback_popcount(value), 32);
 }
 
-BOOST_AUTO_TEST_CASE(test_default_popcountll_1) {
+BOOST_AUTO_TEST_CASE(test_fallback_popcountll_1) {
     std::uint64_t value = 0;
-    BOOST_CHECK_EQUAL(tsl::detail_popcount::default_popcountll(value), 0);
+    BOOST_CHECK_EQUAL(tsl::detail_popcount::fallback_popcountll(value), 0);
     
     value = 1;
-    BOOST_CHECK_EQUAL(tsl::detail_popcount::default_popcountll(value), 1);
+    BOOST_CHECK_EQUAL(tsl::detail_popcount::fallback_popcountll(value), 1);
     
     value = 2;
-    BOOST_CHECK_EQUAL(tsl::detail_popcount::default_popcountll(value), 1);
+    BOOST_CHECK_EQUAL(tsl::detail_popcount::fallback_popcountll(value), 1);
     
     value = 294967496;
-    BOOST_CHECK_EQUAL(tsl::detail_popcount::default_popcountll(value), 12);
+    BOOST_CHECK_EQUAL(tsl::detail_popcount::fallback_popcountll(value), 12);
     
     value = 8446744073709551416ull;
-    BOOST_CHECK_EQUAL(tsl::detail_popcount::default_popcountll(value), 40);
+    BOOST_CHECK_EQUAL(tsl::detail_popcount::fallback_popcountll(value), 40);
     
     value = std::numeric_limits<std::uint64_t>::max();
-    BOOST_CHECK_EQUAL(tsl::detail_popcount::default_popcountll(value), 64);
+    BOOST_CHECK_EQUAL(tsl::detail_popcount::fallback_popcountll(value), 64);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -41,6 +41,14 @@
 #include <vector>
 #include "sparse_growth_policy.h"
 
+#ifdef __INTEL_COMPILER
+#include <immintrin.h> // For _popcnt32 and _popcnt64
+#endif
+
+#ifdef _MSC_VER
+#include <intrin.h> // For __cpuid, __popcnt and __popcnt64
+#endif
+
 
 
 #ifndef tsl_assert
@@ -52,13 +60,6 @@
 #endif
 
 
-#ifdef __INTEL_COMPILER
-#include <immintrin.h> // For _popcnt32 and _popcnt64
-#endif
-
-#ifdef _MSC_VER
-#include <intrin.h> // For __cpuid, __popcnt and __popcnt64
-#endif
 
 namespace tsl {
     
@@ -86,7 +87,7 @@ namespace detail_popcount {
  * Define the popcount(ll) methods and pick-up the best depending on the compiler.
  */
 // From Wikipedia: https://en.wikipedia.org/wiki/Hamming_weight
-inline int default_popcountll(unsigned long long int x) {
+inline int fallback_popcountll(unsigned long long int x) {
     static_assert(sizeof(unsigned long long int) == sizeof(std::uint64_t),
                   "sizeof(unsigned long long int) must be equal to sizeof(std::uint64_t). "
                   "Open a feature request if you need support for a platform where it isn't the case.");
@@ -102,7 +103,7 @@ inline int default_popcountll(unsigned long long int x) {
     return (x * h01) >> (64ull - 8ull);
 }
 
-inline int default_popcount(unsigned int x) {
+inline int fallback_popcount(unsigned int x) {
     static_assert(sizeof(int) == sizeof(std::uint32_t) || sizeof(int) == sizeof(std::uint64_t),
                   "sizeof(unsigned long long int) must be equal to sizeof(std::uint32_t) or sizeof(std::uint64_t). "
                   "Open a feature request if you need support for a platform where it isn't the case.");
@@ -119,7 +120,7 @@ inline int default_popcount(unsigned int x) {
         return (x * h01) >> (32 - 8);
     }
     else {
-        return default_popcountll(x);
+        return fallback_popcountll(x);
     }
 }
 
@@ -149,9 +150,9 @@ inline int popcountll(unsigned long long int value) {
         "sizeof(unsigned long long int) must be equal to sizeof(std::int64_t). ");
 
     static const bool has_popcount = has_popcount_support();
-    return has_popcount?static_cast<int>(__popcnt64(static_cast<std::int64_t>(value))):default_popcountll(value);
+    return has_popcount?static_cast<int>(__popcnt64(static_cast<std::int64_t>(value))):fallback_popcountll(value);
 #else
-    return default_popcountll(value);
+    return fallback_popcountll(value);
 #endif
 }
 
@@ -160,7 +161,7 @@ inline int popcount(unsigned int value) {
         "sizeof(unsigned int) must be equal to sizeof(std::int32_t). ");
 
     static const bool has_popcount = has_popcount_support();
-    return has_popcount?static_cast<int>(__popcnt(static_cast<std::int32_t>(value))):default_popcount(value);
+    return has_popcount?static_cast<int>(__popcnt(static_cast<std::int32_t>(value))):fallback_popcount(value);
 }
 
 #elif defined(__INTEL_COMPILER)
@@ -175,11 +176,11 @@ inline int popcount(unsigned int value) {
 
 #else
 inline int popcountll(unsigned long long int x) {
-    return default_popcountll(x);
+    return fallback_popcountll(x);
 }
 
 inline int popcount(unsigned int x) {
-    return default_popcount(x);
+    return fallback_popcount(x);
 }
 
 #endif
@@ -534,11 +535,14 @@ private:
     }
     
 
-    
+    // TODO Simplify and optimize
     template<typename... Args, typename U = value_type, 
              typename std::enable_if<!std::is_nothrow_move_constructible<U>::value>::type* = nullptr>
     void insert_at_offset_no_alloc(allocator_type& alloc, size_type offset, Args&&... value_args) {
         tsl_assert(offset <= m_nb_elements);
+        tsl_assert(m_nb_elements < m_capacity);
+        
+        value_type value_to_insert(std::forward<Args>(value_args)...);
         
         size_type i = m_nb_elements;
         try {
@@ -548,11 +552,25 @@ private:
                 i--;
             }
             
-            construct_value(alloc, m_values + offset, std::forward<Args>(value_args)...);
+            construct_value(alloc, m_values + offset, std::move(value_to_insert));
         }
         catch(...) {
-            for(size_type j = m_nb_elements;  j != i; j--) {
+            /**
+             * We can't guarantee the strong exception safety with a move/copy constructor that throws.
+             * We don't have other choice than losing the values that we have displaced.
+             */
+            for(size_type j = m_nb_elements; j != i; j--) {
                 destroy_value(alloc, m_values + j);
+                
+                const size_type index = offset_to_index(j - 1);
+                tsl_assert(has_value_at_index(index));
+                tsl_assert(!has_deleted_value_at_index(index));
+                
+                m_bitmap_vals = (m_bitmap_vals ^ (bitmap_type(1) << index));
+                m_bitmap_deleted_vals = (m_bitmap_deleted_vals | (bitmap_type(1) << index)); 
+                
+                tsl_assert(!has_value_at_index(index));
+                tsl_assert(has_deleted_value_at_index(index));
             }
             
             throw;
@@ -565,6 +583,7 @@ private:
              typename std::enable_if<std::is_nothrow_move_constructible<U>::value>::type* = nullptr>
     void insert_at_offset_no_alloc(allocator_type& alloc, size_type offset, Args&&... value_args) {
         tsl_assert(offset <= m_nb_elements);
+        tsl_assert(m_nb_elements < m_capacity);
         
         for(size_type i = m_nb_elements; i > offset; i--) {
             construct_value(alloc, m_values + i, std::move(m_values[i - 1]));
@@ -590,47 +609,55 @@ private:
     template<typename... Args, typename U = value_type, 
              typename std::enable_if<!std::is_nothrow_move_constructible<U>::value>::type* = nullptr>
     void insert_at_offset_alloc(allocator_type& alloc, size_type offset, Args&&... value_args) {
-        value_type* new_values = alloc.allocate(next_capacity());
+        const size_type new_capacity = next_capacity();
+        tsl_assert(m_nb_elements == m_capacity);
+        tsl_assert(new_capacity > m_capacity);
+        
+        value_type* new_values = alloc.allocate(new_capacity);
         tsl_assert(new_values != nullptr); // allocate should throw if there is a failure
         
-        size_type nb_new_elements = 0;
+        size_type nb_new_values = 0;
         try {
             for(size_type i = 0; i < offset; i++) {
                 construct_value(alloc, new_values + i, m_values[i]);
-                nb_new_elements++;
+                nb_new_values++;
             }
             
             construct_value(alloc, new_values + offset, std::forward<Args>(value_args)...);
-            nb_new_elements++;
+            nb_new_values++;
             
             for(size_type i = offset; i < m_nb_elements; i++) {
                 construct_value(alloc, new_values + i + 1, m_values[i]);
-                nb_new_elements++;
+                nb_new_values++;
             }
         }
         catch(...) {
-            destroy_and_deallocate_values(alloc, new_values, nb_new_elements, next_capacity());
+            destroy_and_deallocate_values(alloc, new_values, nb_new_values, new_capacity);
             throw;
         }
         
         destroy_and_deallocate_values(alloc, m_values, m_nb_elements, m_capacity);
-        m_values = new_values;
         
-        m_capacity = next_capacity();
+        m_values = new_values;
+        m_capacity = new_capacity;
         m_nb_elements++;
     }
    
     template<typename... Args, typename U = value_type, 
              typename std::enable_if<std::is_nothrow_move_constructible<U>::value>::type* = nullptr>
     void insert_at_offset_alloc(allocator_type& alloc, size_type offset, Args&&... value_args) {
-        value_type* new_values = alloc.allocate(next_capacity());
+        const size_type new_capacity = next_capacity();
+        tsl_assert(m_nb_elements == m_capacity);
+        tsl_assert(new_capacity > m_capacity);
+        
+        value_type* new_values = alloc.allocate(new_capacity);
         tsl_assert(new_values != nullptr); // allocate should throw if there is a failure
         
         try {
             construct_value(alloc, new_values + offset, std::forward<Args>(value_args)...);
         }
         catch(...) {
-            alloc.deallocate(new_values, next_capacity());
+            alloc.deallocate(new_values, new_capacity);
             throw;
         }
         
@@ -643,11 +670,10 @@ private:
             construct_value(alloc, new_values + i + 1, std::move(m_values[i]));
         }
         
-        
         destroy_and_deallocate_values(alloc, m_values, m_nb_elements, m_capacity);
-        m_values = new_values;
         
-        m_capacity = next_capacity();
+        m_values = new_values;
+        m_capacity = new_capacity;
         m_nb_elements++;
     }
     
@@ -852,8 +878,10 @@ public:
          * We can't use `vector(size_type count, const T& value, const Allocator& alloc)` as it requires the
          * value T to be copyable.
          */
-        const size_type nb_sparse_buckets = std::max(size_type(1), 
-                                                     tsl::detail_sparse_hash::round_up_to_power_of_two(bucket_count) >> sparse_array::SHIFT);
+        const size_type nb_sparse_buckets = 
+                   std::max(size_type(1), 
+                            tsl::detail_sparse_hash::round_up_to_power_of_two(bucket_count) >> sparse_array::SHIFT);
+                   
         m_sparse_buckets.resize(nb_sparse_buckets);
         m_sparse_buckets.back().set_as_last();
         
@@ -880,6 +908,7 @@ public:
         for(const auto& bucket: other.m_sparse_buckets) {
             m_sparse_buckets.emplace_back(bucket, static_cast<Allocator&>(*this));
         }
+        tsl_assert(!m_sparse_buckets.empty() && m_sparse_buckets.back().last());
     }
     
     sparse_hash(sparse_hash&& other) noexcept(std::is_nothrow_move_constructible<Allocator>::value &&
@@ -922,6 +951,7 @@ public:
             for(const auto& bucket: other.m_sparse_buckets) {
                 m_sparse_buckets.emplace_back(bucket, static_cast<Allocator&>(*this));
             }
+            tsl_assert(!m_sparse_buckets.empty() && m_sparse_buckets.back().last());
             
             
             m_bucket_count = other.m_bucket_count;
@@ -944,6 +974,7 @@ public:
             for(auto&& bucket: other.m_sparse_buckets) {
                 m_sparse_buckets.emplace_back(std::move(bucket), static_cast<Allocator&>(*this));
             }
+            tsl_assert(!m_sparse_buckets.empty() && m_sparse_buckets.back().last());
         }
         else {
             static_cast<Allocator&>(*this) = std::move(static_cast<Allocator&>(other));
@@ -1125,6 +1156,7 @@ public:
      * we use a iterator instead of a const_iterator.
      */
     iterator erase(iterator pos) {
+        tsl_assert(pos != end() && m_nb_elements > 0);
         auto it_sparse_array_next = pos.m_sparse_buckets_it->erase_value_at_position(*this, pos.m_sparse_array_it);
         m_nb_elements--;
 
@@ -1155,7 +1187,8 @@ public:
             return mutable_iterator(first);
         }
         
-        const std::size_t nb_elements_to_erase = std::distance(first, last);
+        //TODO optimize
+        const std::size_t nb_elements_to_erase = static_cast<std::size_t>(std::distance(first, last));
         auto to_delete = mutable_iterator(first);
         for(std::size_t i = 0; i < nb_elements_to_erase; i++) {
             to_delete = erase(to_delete);
@@ -1310,6 +1343,7 @@ public:
      * Hash policy 
      */
     float load_factor() const {
+        tsl_assert(bucket_count() > 0);
         return float(m_nb_elements)/float(bucket_count());
     }
     
@@ -1530,11 +1564,9 @@ private:
         new_table.swap(*this);
     }
     
-private:
-    static const size_type MIN_BUCKETS_SIZE = sparse_array::BITMAP_NB_BITS;
     
 public:    
-    static const size_type DEFAULT_INIT_BUCKETS_SIZE = MIN_BUCKETS_SIZE;
+    static const size_type DEFAULT_INIT_BUCKETS_SIZE = sparse_array::BITMAP_NB_BITS;
     static constexpr float DEFAULT_MAX_LOAD_FACTOR = 0.5f;
     
 private:
