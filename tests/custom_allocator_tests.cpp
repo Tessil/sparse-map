@@ -75,7 +75,7 @@ public:
     pointer allocate(size_type n, const void* /*hint*/ = 0) {
         nb_custom_allocs++;
         
-        pointer ptr = static_cast<pointer>(aligned_alloc(alignof(T), n * sizeof(T)));
+        pointer ptr = static_cast<pointer>(malloc(n * sizeof(T)));
         if(ptr == nullptr) {
             throw std::bad_alloc();
         }
