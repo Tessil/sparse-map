@@ -86,6 +86,7 @@ namespace detail_popcount {
 /**
  * Define the popcount(ll) methods and pick-up the best depending on the compiler.
  */
+
 // From Wikipedia: https://en.wikipedia.org/wiki/Hamming_weight
 inline int fallback_popcountll(unsigned long long int x) {
     static_assert(sizeof(unsigned long long int) == sizeof(std::uint64_t),
@@ -100,15 +101,15 @@ inline int fallback_popcountll(unsigned long long int x) {
     x -= (x >> 1ull) & m1;
     x = (x & m2) + ((x >> 2ull) & m2);
     x = (x + (x >> 4ull)) & m4;
-    return (x * h01) >> (64ull - 8ull);
+    return static_cast<int>((x * h01) >> (64ull - 8ull));
 }
 
 inline int fallback_popcount(unsigned int x) {
-    static_assert(sizeof(int) == sizeof(std::uint32_t) || sizeof(int) == sizeof(std::uint64_t),
-                  "sizeof(unsigned long long int) must be equal to sizeof(std::uint32_t) or sizeof(std::uint64_t). "
+    static_assert(sizeof(unsigned int) == sizeof(std::uint32_t) || sizeof(unsigned int) == sizeof(std::uint64_t),
+                  "sizeof(unsigned int) must be equal to sizeof(std::uint32_t) or sizeof(std::uint64_t). "
                   "Open a feature request if you need support for a platform where it isn't the case.");
 
-    if (sizeof(int) == sizeof(std::uint32_t)) {
+    if (sizeof(unsigned int) == sizeof(std::uint32_t)) {
         const std::uint32_t m1 = 0x55555555;
         const std::uint32_t m2 = 0x33333333;
         const std::uint32_t m4 = 0x0f0f0f0f;
@@ -117,12 +118,13 @@ inline int fallback_popcount(unsigned int x) {
         x -= (x >> 1) & m1;
         x = (x & m2) + ((x >> 2) & m2);
         x = (x + (x >> 4)) & m4;
-        return (x * h01) >> (32 - 8);
+        return static_cast<int>((x * h01) >> (32 - 8));
     }
     else {
         return fallback_popcountll(x);
     }
 }
+
 
 #if defined(__clang__) || defined(__GNUC__) 
 inline int popcountll(unsigned long long int value) {
@@ -132,6 +134,7 @@ inline int popcountll(unsigned long long int value) {
 inline int popcount(unsigned int value) {
     return __builtin_popcount(value);
 }
+
 
 #elif defined(_MSC_VER)
 /**
@@ -164,6 +167,7 @@ inline int popcount(unsigned int value) {
     return has_popcount?static_cast<int>(__popcnt(static_cast<std::int32_t>(value))):fallback_popcount(value);
 }
 
+
 #elif defined(__INTEL_COMPILER)
 inline int popcountll(unsigned long long int value) {
     static_assert(sizeof(unsigned long long int) == sizeof(__int64), "");
@@ -174,6 +178,7 @@ inline int popcount(unsigned int value) {
     return _popcnt32(static_cast<int>(value));
 }
 
+
 #else
 inline int popcountll(unsigned long long int x) {
     return fallback_popcountll(x);
@@ -183,8 +188,10 @@ inline int popcount(unsigned int x) {
     return fallback_popcount(x);
 }
 
+
 #endif
 }
+
 
 
 namespace detail_sparse_hash {
@@ -237,15 +244,22 @@ inline std::size_t round_up_to_power_of_two(std::size_t value) {
  * WARNING: the sparse_array class doesn't free the ressources allocated through the allocator passed in parameter
  * in each method. You have to manually call `clear(Allocator&)` when you don't need the class anymore.
  * 
- * The reason is that the sparse_array doesn't store the allocator. It only allocate/deallocate objects with
- * the allocator that is passed in parameter.
+ * The reason is that the sparse_array doesn't store the allocator to avoid wasting space in each sparse_array when 
+ * the allocator has a size > 0. It only allocate/deallocate objects with the allocator that is passed in parameter.
  * 
  * WARNING: Strong exception guarantee only holds if std::is_nothrow_move_constructible<T>::value is true. 
  * Otherwise, only the basic guarantee is there (all ressources will be released but the array may be in
  * an inconsitent state if an exception is thrown).
  * 
- * Index designs a value between [0, BITMAP_NB_BITS), it is an index similar to std::vector.
- * Offset designs the real position in `m_values` corresponding to an index.
+ * 
+ * 
+ * Index denotes a value between [0, BITMAP_NB_BITS), it is an index similar to std::vector.
+ * Offset denotes the real position in `m_values` corresponding to an index.
+ * 
+ * We are using raw pointers instead of std::vector to avoid loosing 2*sizeof(size_t) bytes to store the capacity 
+ * and size of the vector. We know we can only store up to BITMAP_NB_BITS elements in the array.
+ * 
+ * 
  * 
  * TODO Check to use std::realloc and std::memmove when possible
  */
@@ -258,6 +272,11 @@ public:
     using iterator = value_type*;
     using const_iterator = const value_type*;
     
+private:
+    static const size_type CAPACITY_GROWTH_STEP = (Sparsity == tsl::sh::sparsity::high)?2:
+                                                  (Sparsity == tsl::sh::sparsity::medium)?4:
+                                                  8; // (Sparsity == tsl::sh::sparsity::low)
+                                                  
     /**
      * Bitmap size configuration.
      * Use 32 bits on 32-bits or less environnements as popcount on 64 bits is slow on these environnements,
@@ -279,12 +298,22 @@ public:
     static_assert(std::numeric_limits<bitmap_type>::digits >= BITMAP_NB_BITS, 
                         "bitmap_type must be able to hold at least BITMAP_NB_BITS.");
     static_assert((std::size_t(1) << SHIFT) == BITMAP_NB_BITS, "(1 << SHIFT) must be equal to BITMAP_NB_BITS.");
+    static_assert(std::numeric_limits<size_type>::max() >= BITMAP_NB_BITS, 
+                        "size_type must be big enough to hold BITMAP_NB_BITS.");
     
-private:    
-    static const size_type CAPACITY_GROWTH_STEP = (Sparsity == tsl::sh::sparsity::high)?2:
-                                                  (Sparsity == tsl::sh::sparsity::medium)?4:
-                                                  8; // (Sparsity == tsl::sh::sparsity::low)
-                                                  
+    
+public:
+    static const std::size_t DEFAULT_INIT_BUCKETS_SIZE = BITMAP_NB_BITS;
+
+    static std::size_t sparse_ibucket(std::size_t ibucket) {
+        return ibucket >> SHIFT;
+    }
+    
+    static typename sparse_array::size_type index_in_sparse_bucket(std::size_t ibucket) {
+        return static_cast<typename sparse_array::size_type>(ibucket & sparse_array::MASK);
+    }
+    
+    
 public:
     sparse_array() noexcept: m_values(nullptr), m_bitmap_vals(0), m_bitmap_deleted_vals(0), 
                              m_nb_elements(0), m_capacity(0), m_last_array(false)
@@ -297,6 +326,7 @@ public:
                              m_nb_elements(0), m_capacity(other.m_capacity), 
                              m_last_array(other.m_last_array)
     {
+        tsl_assert(other.m_capacity >= other.m_nb_elements);
         if(m_capacity == 0) {
             return;
         }
@@ -333,6 +363,7 @@ public:
                                                  m_nb_elements(0), m_capacity(other.m_capacity), 
                                                  m_last_array(other.m_last_array)
     {
+        tsl_assert(other.m_capacity >= other.m_nb_elements);
         if(m_capacity == 0) {
             return;
         }
@@ -387,32 +418,32 @@ public:
         m_last_array = true;
     }
     
-    bool has_value_at_index(size_type index) const noexcept {
+    bool has_value(size_type index) const noexcept {
         tsl_assert(index < BITMAP_NB_BITS);
         return (m_bitmap_vals & (bitmap_type(1) << index)) != 0;
     }
     
-    bool has_deleted_value_at_index(size_type index) const noexcept {
+    bool has_deleted_value(size_type index) const noexcept {
         tsl_assert(index < BITMAP_NB_BITS);
         return (m_bitmap_deleted_vals & (bitmap_type(1) << index)) != 0;
     }
     
-    iterator value_at_index(size_type index) noexcept {
-        tsl_assert(has_value_at_index(index));
+    iterator value(size_type index) noexcept {
+        tsl_assert(has_value(index));
         return m_values + index_to_offset(index);
     }
     
-    const_iterator value_at_index(size_type index) const noexcept {
-        tsl_assert(has_value_at_index(index));
+    const_iterator value(size_type index) const noexcept {
+        tsl_assert(has_value(index));
         return m_values + index_to_offset(index);
     }
     
     /**
-     * Return iterator to set value.
+     * Return iterator to setted value.
      */
     template<typename... Args>
-    iterator set_value_at_index(allocator_type& alloc, size_type index, Args&&... value_args) {
-        tsl_assert(!has_value_at_index(index));
+    iterator set(allocator_type& alloc, size_type index, Args&&... value_args) {
+        tsl_assert(!has_value(index));
         
         const size_type offset = index_to_offset(index);
         if(m_nb_elements < m_capacity) {
@@ -425,20 +456,20 @@ public:
         m_bitmap_vals = (m_bitmap_vals | (bitmap_type(1) << index));
         m_bitmap_deleted_vals = (m_bitmap_deleted_vals & ~(bitmap_type(1) << index));
         
-        tsl_assert(has_value_at_index(index));
-        tsl_assert(!has_deleted_value_at_index(index));
+        tsl_assert(has_value(index));
+        tsl_assert(!has_deleted_value(index));
         return m_values + offset;
     }
     
-    iterator erase_value_at_position(allocator_type& alloc, iterator position) {
+    iterator erase(allocator_type& alloc, iterator position) {
         const size_type offset = static_cast<size_type>(std::distance(begin(), position));
-        return erase_value_at_position(alloc, position, offset_to_index(offset));
+        return erase(alloc, position, offset_to_index(offset));
     }
     
     // Return the next value or end if no next value
-    iterator erase_value_at_position(allocator_type& alloc, iterator position, size_type index) {
-        tsl_assert(has_value_at_index(index));
-        tsl_assert(!has_deleted_value_at_index(index));
+    iterator erase(allocator_type& alloc, iterator position, size_type index) {
+        tsl_assert(has_value(index));
+        tsl_assert(!has_deleted_value(index));
         
         const size_type offset = static_cast<size_type>(std::distance(begin(), position));
         for(std::size_t i = offset + 1; i < m_nb_elements; i++) {
@@ -449,8 +480,8 @@ public:
         m_bitmap_vals = (m_bitmap_vals ^ (bitmap_type(1) << index));
         m_bitmap_deleted_vals = (m_bitmap_deleted_vals | (bitmap_type(1) << index)); 
         
-        tsl_assert(!has_value_at_index(index));
-        tsl_assert(has_deleted_value_at_index(index));
+        tsl_assert(!has_value(index));
+        tsl_assert(has_deleted_value(index));
         
         m_nb_elements--;
         
@@ -542,6 +573,7 @@ private:
         tsl_assert(offset <= m_nb_elements);
         tsl_assert(m_nb_elements < m_capacity);
         
+        // TODO Don't do it if Args == value_type
         value_type value_to_insert(std::forward<Args>(value_args)...);
         
         size_type i = m_nb_elements;
@@ -563,14 +595,14 @@ private:
                 destroy_value(alloc, m_values + j);
                 
                 const size_type index = offset_to_index(j - 1);
-                tsl_assert(has_value_at_index(index));
-                tsl_assert(!has_deleted_value_at_index(index));
+                tsl_assert(has_value(index));
+                tsl_assert(!has_deleted_value(index));
                 
                 m_bitmap_vals = (m_bitmap_vals ^ (bitmap_type(1) << index));
                 m_bitmap_deleted_vals = (m_bitmap_deleted_vals | (bitmap_type(1) << index)); 
                 
-                tsl_assert(!has_value_at_index(index));
-                tsl_assert(has_deleted_value_at_index(index));
+                tsl_assert(!has_value(index));
+                tsl_assert(has_deleted_value(index));
             }
             
             throw;
@@ -703,6 +735,13 @@ private:
  * The strong exception guarantee only holds if `ExceptionSafety` is set to `tsl::sh::exception_safety::strong`.
  * 
  * Behaviour is undefined if the destructor of `ValueType` throws.
+ * 
+ * 
+ * The class holds its buckets in a 2-dimensional fashion. Instead of having a linear `std::vector<bucket>` 
+ * for [0, bucket_count) where each bucket stores one value, we have a `std::vector<sparse_array>` (m_sparse_buckets) 
+ * where each `sparse_array` stores multiple values (up to `sparse_array::BITMAP_NB_BITS`). To convert a one dimensional 
+ * `ibucket` position to a position in `std::vector<sparse_array>` and a position in `sparse_array`, use respectively 
+ * the methods `sparse_array::sparse_ibucket(ibucket)` and `sparse_array::index_in_sparse_bucket(ibucket)`.
  */
 template<class ValueType,
          class KeySelect,
@@ -879,8 +918,8 @@ public:
          * value T to be copyable.
          */
         const size_type nb_sparse_buckets = 
-                   std::max(size_type(1), 
-                            tsl::detail_sparse_hash::round_up_to_power_of_two(bucket_count) >> sparse_array::SHIFT);
+                std::max(size_type(1), 
+                         sparse_array::sparse_ibucket(tsl::detail_sparse_hash::round_up_to_power_of_two(bucket_count)));
                    
         m_sparse_buckets.resize(nb_sparse_buckets);
         m_sparse_buckets.back().set_as_last();
@@ -1153,11 +1192,11 @@ public:
     
     /**
      * Here to avoid `template<class K> size_type erase(const K& key)` being used when
-     * we use a iterator instead of a const_iterator.
+     * we use an iterator instead of a const_iterator.
      */
     iterator erase(iterator pos) {
         tsl_assert(pos != end() && m_nb_elements > 0);
-        auto it_sparse_array_next = pos.m_sparse_buckets_it->erase_value_at_position(*this, pos.m_sparse_array_it);
+        auto it_sparse_array_next = pos.m_sparse_buckets_it->erase(*this, pos.m_sparse_array_it);
         m_nb_elements--;
 
         if(it_sparse_array_next == pos.m_sparse_buckets_it->end()) {
@@ -1441,19 +1480,18 @@ private:
         
         std::size_t probe = 0;
         while(true) {
-            const std::size_t sparse_ibucket = ibucket >> sparse_array::SHIFT;
-            const auto index_in_sparse_bucket = 
-                        static_cast<typename sparse_array::size_type>(ibucket & sparse_array::MASK);
+            const std::size_t sparse_ibucket = sparse_array::sparse_ibucket(ibucket);
+            const auto index_in_sparse_bucket = sparse_array::index_in_sparse_bucket(ibucket);
         
-            if(m_sparse_buckets[sparse_ibucket].has_value_at_index(index_in_sparse_bucket)) {
-                auto value_it = m_sparse_buckets[sparse_ibucket].value_at_index(index_in_sparse_bucket);
+            if(m_sparse_buckets[sparse_ibucket].has_value(index_in_sparse_bucket)) {
+                auto value_it = m_sparse_buckets[sparse_ibucket].value(index_in_sparse_bucket);
                 if(compare_keys(key, KeySelect()(*value_it))) {
                     return std::make_pair(iterator(m_sparse_buckets.begin() + sparse_ibucket, value_it), false);
                 }
             }
             else {
-                auto value_it = m_sparse_buckets[sparse_ibucket].set_value_at_index(*this, index_in_sparse_bucket, 
-                                                                                std::forward<Args>(value_type_args)...);
+                auto value_it = m_sparse_buckets[sparse_ibucket].set(*this, index_in_sparse_bucket, 
+                                                                     std::forward<Args>(value_type_args)...);
                 m_nb_elements++;
                 
                 return std::make_pair(iterator(m_sparse_buckets.begin() + sparse_ibucket, value_it), true);
@@ -1472,19 +1510,18 @@ private:
         
         std::size_t probe = 0;
         while(true) {
-            const std::size_t sparse_ibucket = ibucket >> sparse_array::SHIFT;
-            const auto index_in_sparse_bucket = 
-                        static_cast<typename sparse_array::size_type>(ibucket & sparse_array::MASK);
+            const std::size_t sparse_ibucket = sparse_array::sparse_ibucket(ibucket);
+            const auto index_in_sparse_bucket = sparse_array::index_in_sparse_bucket(ibucket);
         
-            if(m_sparse_buckets[sparse_ibucket].has_value_at_index(index_in_sparse_bucket)) {
-                auto value_it = m_sparse_buckets[sparse_ibucket].value_at_index(index_in_sparse_bucket);
+            if(m_sparse_buckets[sparse_ibucket].has_value(index_in_sparse_bucket)) {
+                auto value_it = m_sparse_buckets[sparse_ibucket].value(index_in_sparse_bucket);
                 if(compare_keys(key, KeySelect()(*value_it))) {
-                    m_sparse_buckets[sparse_ibucket].erase_value_at_position(*this, value_it, index_in_sparse_bucket);
+                    m_sparse_buckets[sparse_ibucket].erase(*this, value_it, index_in_sparse_bucket);
                     m_nb_elements--;
                     return 1;
                 }
             }
-            else if(!m_sparse_buckets[sparse_ibucket].has_deleted_value_at_index(index_in_sparse_bucket)) {
+            else if(!m_sparse_buckets[sparse_ibucket].has_deleted_value(index_in_sparse_bucket)) {
                 return 0;
             }
             
@@ -1506,17 +1543,16 @@ private:
         
         std::size_t probe = 0;
         while(true) {
-            const std::size_t sparse_ibucket = ibucket >> sparse_array::SHIFT;
-            const auto index_in_sparse_bucket = 
-                        static_cast<typename sparse_array::size_type>(ibucket & sparse_array::MASK);
+            const std::size_t sparse_ibucket = sparse_array::sparse_ibucket(ibucket);
+            const auto index_in_sparse_bucket = sparse_array::index_in_sparse_bucket(ibucket);
         
-            if(m_sparse_buckets[sparse_ibucket].has_value_at_index(index_in_sparse_bucket)) {
-                auto value_it = m_sparse_buckets[sparse_ibucket].value_at_index(index_in_sparse_bucket);
+            if(m_sparse_buckets[sparse_ibucket].has_value(index_in_sparse_bucket)) {
+                auto value_it = m_sparse_buckets[sparse_ibucket].value(index_in_sparse_bucket);
                 if(compare_keys(key, KeySelect()(*value_it))) {
                     return const_iterator(m_sparse_buckets.cbegin() + sparse_ibucket, value_it);
                 }
             }
-            else if(!m_sparse_buckets[sparse_ibucket].has_deleted_value_at_index(index_in_sparse_bucket)) {
+            else if(!m_sparse_buckets[sparse_ibucket].has_deleted_value(index_in_sparse_bucket)) {
                 return cend();
             }
             
@@ -1566,7 +1602,7 @@ private:
     
     
 public:    
-    static const size_type DEFAULT_INIT_BUCKETS_SIZE = sparse_array::BITMAP_NB_BITS;
+    static const size_type DEFAULT_INIT_BUCKETS_SIZE = sparse_array::DEFAULT_INIT_BUCKETS_SIZE;
     static constexpr float DEFAULT_MAX_LOAD_FACTOR = 0.5f;
     
 private:
