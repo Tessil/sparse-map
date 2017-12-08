@@ -1475,13 +1475,25 @@ private:
             rehash_impl(GrowthPolicy::next_bucket_count());
         }
         
+        /**
+         * We must insert the value in the first empty or deleted bucket we find. If we first find a 
+         * deleted bucket, we still have to continue the search until we find an empty bucket to be sure
+         * that the value is not in the map. We thus remember the position, if any, of the first deleted 
+         * bucket we have encountered so we can insert it there if needed.
+         */
+        bool found_first_deleted_bucket = false;
+        std::size_t sparse_ibucket_first_deleted = 0;
+        typename sparse_array::size_type index_in_sparse_bucket_first_deleted = 0;
+        
+        
+        
         const std::size_t hash = hash_key(key);
         std::size_t ibucket = bucket_for_hash(hash);
         
         std::size_t probe = 0;
         while(true) {
-            const std::size_t sparse_ibucket = sparse_array::sparse_ibucket(ibucket);
-            const auto index_in_sparse_bucket = sparse_array::index_in_sparse_bucket(ibucket);
+            std::size_t sparse_ibucket = sparse_array::sparse_ibucket(ibucket);
+            auto index_in_sparse_bucket = sparse_array::index_in_sparse_bucket(ibucket);
         
             if(m_sparse_buckets[sparse_ibucket].has_value(index_in_sparse_bucket)) {
                 auto value_it = m_sparse_buckets[sparse_ibucket].value(index_in_sparse_bucket);
@@ -1489,7 +1501,19 @@ private:
                     return std::make_pair(iterator(m_sparse_buckets.begin() + sparse_ibucket, value_it), false);
                 }
             }
+            else if(m_sparse_buckets[sparse_ibucket].has_deleted_value(index_in_sparse_bucket)) {
+                if(!found_first_deleted_bucket) {
+                    found_first_deleted_bucket = true;
+                    sparse_ibucket_first_deleted = sparse_ibucket;
+                    index_in_sparse_bucket_first_deleted = index_in_sparse_bucket;
+                }
+            }
             else {
+                if(found_first_deleted_bucket) {
+                    sparse_ibucket = sparse_ibucket_first_deleted;
+                    index_in_sparse_bucket = index_in_sparse_bucket_first_deleted;
+                }
+                
                 auto value_it = m_sparse_buckets[sparse_ibucket].set(*this, index_in_sparse_bucket, 
                                                                      std::forward<Args>(value_type_args)...);
                 m_nb_elements++;
