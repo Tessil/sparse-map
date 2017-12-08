@@ -1594,7 +1594,7 @@ private:
             
         for(auto& bucket: m_sparse_buckets) {
             for(auto& val: bucket) {
-                new_table.insert(std::move(val));
+                new_table.insert_on_rehash(std::move(val));
             }
             
             // TODO try to reuse some of the memory
@@ -1617,13 +1617,42 @@ private:
             
         for(auto& bucket: m_sparse_buckets) {
             for(auto& val: bucket) {
-                new_table.insert(val);
+                new_table.insert_on_rehash(val);
             }
         }
         
         new_table.swap(*this);
     }
     
+    
+    template<typename K>
+    void insert_on_rehash(K&& key_value) {
+        const key_type& key = KeySelect()(key_value);
+        
+        const std::size_t hash = hash_key(key);
+        std::size_t ibucket = bucket_for_hash(hash);
+        
+        std::size_t probe = 0;
+        while(true) {
+            std::size_t sparse_ibucket = sparse_array::sparse_ibucket(ibucket);
+            auto index_in_sparse_bucket = sparse_array::index_in_sparse_bucket(ibucket);
+        
+            if(!m_sparse_buckets[sparse_ibucket].has_value(index_in_sparse_bucket)) {
+                m_sparse_buckets[sparse_ibucket].set(*this, index_in_sparse_bucket, 
+                                                     std::forward<K>(key_value));
+                m_nb_elements++;
+                
+                return;
+            }
+            else {
+                tsl_assert(!compare_keys(key, 
+                                         KeySelect()(*m_sparse_buckets[sparse_ibucket].value(index_in_sparse_bucket))));
+            }
+            
+            probe++;
+            ibucket = next_bucket(ibucket, probe);
+        }
+    }
     
 public:    
     static const size_type DEFAULT_INIT_BUCKETS_SIZE = sparse_array::DEFAULT_INIT_BUCKETS_SIZE;
