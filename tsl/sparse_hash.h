@@ -242,14 +242,10 @@ inline std::size_t round_up_to_power_of_two(std::size_t value) {
     
 /**
  * WARNING: the sparse_array class doesn't free the ressources allocated through the allocator passed in parameter
- * in each method. You have to manually call `clear(Allocator&)` when you don't need the class anymore.
+ * in each method. You have to manually call `clear(Allocator&)` when you don't need a sparse_array object anymore.
  * 
  * The reason is that the sparse_array doesn't store the allocator to avoid wasting space in each sparse_array when 
- * the allocator has a size > 0. It only allocate/deallocate objects with the allocator that is passed in parameter.
- * 
- * WARNING: Strong exception guarantee only holds if std::is_nothrow_move_constructible<T>::value is true. 
- * Otherwise, only the basic guarantee is there (all ressources will be released but the array may be in
- * an inconsitent state if an exception is thrown).
+ * the allocator has a size > 0. It only allocates/deallocates objects with the allocator that is passed in parameter.
  * 
  * 
  * 
@@ -257,9 +253,12 @@ inline std::size_t round_up_to_power_of_two(std::size_t value) {
  * Offset denotes the real position in `m_values` corresponding to an index.
  * 
  * We are using raw pointers instead of std::vector to avoid loosing 2*sizeof(size_t) bytes to store the capacity 
- * and size of the vector. We know we can only store up to BITMAP_NB_BITS elements in the array.
+ * and size of the vector in each sparse_array. We know we can only store up to BITMAP_NB_BITS elements in the array,
+ * we don't need such big types.
  * 
  * 
+ * T must be nothrow move contructible and/or copy constructible.
+ * Behaviour is undefined if the destructor of T throws an exception.
  * 
  * TODO Check to use std::realloc and std::memmove when possible
  */
@@ -279,20 +278,20 @@ private:
                                                   
     /**
      * Bitmap size configuration.
-     * Use 32 bits on 32-bits or less environnements as popcount on 64 bits is slow on these environnements,
-     * 64 bits otherwise.
+     * Use 32 bits for the bitmap on 32-bits or less environnements as popcount on 64 bits numbers is slow on 
+     * these environnements. Use 64 bits bitmap otherwise.
      */
 #if SIZE_MAX <= UINT32_MAX
     using bitmap_type = std::uint_least32_t;
     static const std::size_t BITMAP_NB_BITS = 32;
     static const std::size_t SHIFT = 5;
-    static const std::size_t MASK = BITMAP_NB_BITS - 1;
 #else
     using bitmap_type = std::uint_least64_t;
     static const std::size_t BITMAP_NB_BITS = 64;
     static const std::size_t SHIFT = 6;
-    static const std::size_t MASK = BITMAP_NB_BITS - 1;
 #endif    
+    
+    static const std::size_t MASK = BITMAP_NB_BITS - 1;
     
     static_assert(is_power_of_two(BITMAP_NB_BITS), "BITMAP_NB_BITS must be a power of two.");
     static_assert(std::numeric_limits<bitmap_type>::digits >= BITMAP_NB_BITS, 
@@ -300,6 +299,8 @@ private:
     static_assert((std::size_t(1) << SHIFT) == BITMAP_NB_BITS, "(1 << SHIFT) must be equal to BITMAP_NB_BITS.");
     static_assert(std::numeric_limits<size_type>::max() >= BITMAP_NB_BITS, 
                         "size_type must be big enough to hold BITMAP_NB_BITS.");
+    static_assert(std::is_unsigned<bitmap_type>::value, "");
+    static_assert((std::numeric_limits<bitmap_type>::max() & MASK) == BITMAP_NB_BITS - 1, "");
     
     
 public:
@@ -385,6 +386,12 @@ public:
     sparse_array& operator=(const sparse_array& ) = delete;
     sparse_array& operator=(sparse_array&& ) = delete;
     
+    ~sparse_array() noexcept {
+        // The code that manages the sparse_array must have called clear before destruction. 
+        // See documentation of sparse_array for more details.
+        tsl_assert(m_capacity == 0 && m_nb_elements == 0 && m_values == nullptr);
+    }
+    
     iterator begin() noexcept { return m_values; }
     iterator end() noexcept { return m_values + m_nb_elements; }
     const_iterator begin() const noexcept { return cbegin(); }
@@ -439,25 +446,23 @@ public:
     }
     
     /**
-     * Return iterator to setted value.
+     * Return iterator to set value.
      */
     template<typename... Args>
     iterator set(allocator_type& alloc, size_type index, Args&&... value_args) {
         tsl_assert(!has_value(index));
         
         const size_type offset = index_to_offset(index);
-        if(m_nb_elements < m_capacity) {
-            insert_at_offset_no_alloc(alloc, offset, std::forward<Args>(value_args)...);
-        }
-        else { 
-            insert_at_offset_alloc(alloc, offset, std::forward<Args>(value_args)...);
-        }
+        insert_at_offset(alloc, offset, std::forward<Args>(value_args)...);
         
         m_bitmap_vals = (m_bitmap_vals | (bitmap_type(1) << index));
         m_bitmap_deleted_vals = (m_bitmap_deleted_vals & ~(bitmap_type(1) << index));
         
+        m_nb_elements++;
+        
         tsl_assert(has_value(index));
         tsl_assert(!has_deleted_value(index));
+        
         return m_values + offset;
     }
     
@@ -472,20 +477,17 @@ public:
         tsl_assert(!has_deleted_value(index));
         
         const size_type offset = static_cast<size_type>(std::distance(begin(), position));
-        for(std::size_t i = offset + 1; i < m_nb_elements; i++) {
-            m_values[i - 1] = std::move(m_values[i]);
-        }
-        destroy_value(alloc, m_values + m_nb_elements - 1);
+        erase_at_offset(alloc, offset);
         
-        m_bitmap_vals = (m_bitmap_vals ^ (bitmap_type(1) << index));
+        m_bitmap_vals = (m_bitmap_vals & ~(bitmap_type(1) << index));
         m_bitmap_deleted_vals = (m_bitmap_deleted_vals | (bitmap_type(1) << index)); 
+        
+        m_nb_elements--;
         
         tsl_assert(!has_value(index));
         tsl_assert(has_deleted_value(index));
         
-        m_nb_elements--;
-        
-        return position;
+        return m_values + offset;
     }
     
     void swap(sparse_array& other) {
@@ -514,13 +516,13 @@ private:
     }
     
     static void destroy_and_deallocate_values(allocator_type& alloc, value_type* values, 
-                                              size_type nb_values, size_type capacity_value) noexcept 
+                                              size_type nb_values, size_type capacity_values) noexcept 
     {
         for(size_type i = 0; i < nb_values; i++) {
             destroy_value(alloc, values + i);
         }
         
-        alloc.deallocate(values, capacity_value);
+        alloc.deallocate(values, capacity_values);
     }
     
     static size_type popcount(bitmap_type val) noexcept {
@@ -565,55 +567,45 @@ private:
         return static_cast<size_type>(m_capacity + CAPACITY_GROWTH_STEP);
     }
     
-
-    // TODO Simplify and optimize
+    
+    
+    
+    
+    
+    
+    /**
+     * Insertion
+     * 
+     * Two situations:
+     * - Either we are in a situation where std::is_nothrow_move_constructible<value_type>::value is true.
+     *   In this case, on insertion we just reallocate m_values when we reach 
+     *   its capacity (i.e. m_nb_elements == m_capacity), otherwise we just put the new value at its 
+     *   appropriate place. We can easly keep the strong exception guarantee as moving the values around is safe.
+     * - Otherwise we are in a situation where std::is_nothrow_move_constructible<value_type>::value is false.
+     *   In this case on EACH insertion we allocate a new area of m_nb_elements + 1 where we copy the values
+     *   of m_values into it and put the new value there. On success, we set m_values to this new area.
+     *   Even if slower, it's the only way to preserve to strong exception guarantee.
+     */
+    template<typename... Args, typename U = value_type, 
+             typename std::enable_if<std::is_nothrow_move_constructible<U>::value>::type* = nullptr>
+    void insert_at_offset(allocator_type& alloc, size_type offset, Args&&... value_args) {
+        if(m_nb_elements < m_capacity) {
+            insert_at_offset_no_realloc(alloc, offset, std::forward<Args>(value_args)...);
+        }
+        else {
+            insert_at_offset_realloc(alloc, offset, next_capacity(), std::forward<Args>(value_args)...);
+        }
+    }
+    
     template<typename... Args, typename U = value_type, 
              typename std::enable_if<!std::is_nothrow_move_constructible<U>::value>::type* = nullptr>
-    void insert_at_offset_no_alloc(allocator_type& alloc, size_type offset, Args&&... value_args) {
-        tsl_assert(offset <= m_nb_elements);
-        tsl_assert(m_nb_elements < m_capacity);
-        
-        // TODO Don't do it if Args == value_type
-        value_type value_to_insert(std::forward<Args>(value_args)...);
-        
-        size_type i = m_nb_elements;
-        try {
-            while(i > offset) {
-                construct_value(alloc, m_values + i, std::move(m_values[i - 1]));
-                destroy_value(alloc, m_values + i - 1);
-                i--;
-            }
-            
-            construct_value(alloc, m_values + offset, std::move(value_to_insert));
-        }
-        catch(...) {
-            /**
-             * We can't guarantee the strong exception safety with a move/copy constructor that throws.
-             * We don't have other choice than losing the values that we have displaced.
-             */
-            for(size_type j = m_nb_elements; j != i; j--) {
-                destroy_value(alloc, m_values + j);
-                
-                const size_type index = offset_to_index(j - 1);
-                tsl_assert(has_value(index));
-                tsl_assert(!has_deleted_value(index));
-                
-                m_bitmap_vals = (m_bitmap_vals ^ (bitmap_type(1) << index));
-                m_bitmap_deleted_vals = (m_bitmap_deleted_vals | (bitmap_type(1) << index)); 
-                
-                tsl_assert(!has_value(index));
-                tsl_assert(has_deleted_value(index));
-            }
-            
-            throw;
-        }
-        
-        m_nb_elements++;
+    void insert_at_offset(allocator_type& alloc, size_type offset, Args&&... value_args) {
+        insert_at_offset_realloc(alloc, offset, m_nb_elements + 1, std::forward<Args>(value_args)...);
     }
     
     template<typename... Args, typename U = value_type, 
              typename std::enable_if<std::is_nothrow_move_constructible<U>::value>::type* = nullptr>
-    void insert_at_offset_no_alloc(allocator_type& alloc, size_type offset, Args&&... value_args) {
+    void insert_at_offset_no_realloc(allocator_type& alloc, size_type offset, Args&&... value_args) {
         tsl_assert(offset <= m_nb_elements);
         tsl_assert(m_nb_elements < m_capacity);
         
@@ -632,55 +624,12 @@ private:
             }
             throw;
         }
-        
-        m_nb_elements++;
-    }
-   
-   
-   
-    template<typename... Args, typename U = value_type, 
-             typename std::enable_if<!std::is_nothrow_move_constructible<U>::value>::type* = nullptr>
-    void insert_at_offset_alloc(allocator_type& alloc, size_type offset, Args&&... value_args) {
-        const size_type new_capacity = next_capacity();
-        tsl_assert(m_nb_elements == m_capacity);
-        tsl_assert(new_capacity > m_capacity);
-        
-        value_type* new_values = alloc.allocate(new_capacity);
-        tsl_assert(new_values != nullptr); // allocate should throw if there is a failure
-        
-        size_type nb_new_values = 0;
-        try {
-            for(size_type i = 0; i < offset; i++) {
-                construct_value(alloc, new_values + i, m_values[i]);
-                nb_new_values++;
-            }
-            
-            construct_value(alloc, new_values + offset, std::forward<Args>(value_args)...);
-            nb_new_values++;
-            
-            for(size_type i = offset; i < m_nb_elements; i++) {
-                construct_value(alloc, new_values + i + 1, m_values[i]);
-                nb_new_values++;
-            }
-        }
-        catch(...) {
-            destroy_and_deallocate_values(alloc, new_values, nb_new_values, new_capacity);
-            throw;
-        }
-        
-        destroy_and_deallocate_values(alloc, m_values, m_nb_elements, m_capacity);
-        
-        m_values = new_values;
-        m_capacity = new_capacity;
-        m_nb_elements++;
     }
    
     template<typename... Args, typename U = value_type, 
              typename std::enable_if<std::is_nothrow_move_constructible<U>::value>::type* = nullptr>
-    void insert_at_offset_alloc(allocator_type& alloc, size_type offset, Args&&... value_args) {
-        const size_type new_capacity = next_capacity();
-        tsl_assert(m_nb_elements == m_capacity);
-        tsl_assert(new_capacity > m_capacity);
+    void insert_at_offset_realloc(allocator_type& alloc, size_type offset, size_type new_capacity, Args&&... value_args) {
+        tsl_assert(new_capacity > m_nb_elements);
         
         value_type* new_values = alloc.allocate(new_capacity);
         tsl_assert(new_values != nullptr); // allocate should throw if there is a failure
@@ -706,7 +655,106 @@ private:
         
         m_values = new_values;
         m_capacity = new_capacity;
-        m_nb_elements++;
+    }
+    
+    template<typename... Args, typename U = value_type, 
+             typename std::enable_if<!std::is_nothrow_move_constructible<U>::value>::type* = nullptr>
+    void insert_at_offset_realloc(allocator_type& alloc, size_type offset, size_type new_capacity, Args&&... value_args) {
+        tsl_assert(new_capacity > m_nb_elements);
+        
+        value_type* new_values = alloc.allocate(new_capacity);
+        tsl_assert(new_values != nullptr); // allocate should throw if there is a failure
+        
+        size_type nb_new_values = 0;
+        try {
+            for(size_type i = 0; i < offset; i++) {
+                construct_value(alloc, new_values + i, m_values[i]);
+                nb_new_values++;
+            }
+            
+            construct_value(alloc, new_values + offset, std::forward<Args>(value_args)...);
+            nb_new_values++;
+            
+            for(size_type i = offset; i < m_nb_elements; i++) {
+                construct_value(alloc, new_values + i + 1, m_values[i]);
+                nb_new_values++;
+            }
+        }
+        catch(...) {
+            destroy_and_deallocate_values(alloc, new_values, nb_new_values, new_capacity);
+            throw;
+        }
+        
+        tsl_assert(nb_new_values == m_nb_elements + 1);
+        
+        destroy_and_deallocate_values(alloc, m_values, m_nb_elements, m_capacity);
+        
+        m_values = new_values;
+        m_capacity = new_capacity;
+    }    
+    
+    
+    
+    /**
+     * Erasure
+     * 
+     * Two situations:
+     * - Either we are in a situation where std::is_nothrow_move_constructible<value_type>::value is true.
+     *   Simply destroy the value and left-shift move the value on the right of offset.
+     * - Otherwise we are in a situation where std::is_nothrow_move_constructible<value_type>::value is false.
+     *   Copy all the values except the one at offset into a new heap area. On success, we set m_values 
+     *   to this new area. Even if slower, it's the only way to preserve to strong exception guarantee. 
+     */
+    template<typename... Args, typename U = value_type, 
+             typename std::enable_if<std::is_nothrow_move_constructible<U>::value>::type* = nullptr>
+    void erase_at_offset(allocator_type& alloc, size_type offset) {
+        tsl_assert(offset < m_nb_elements);
+        
+        destroy_value(alloc, m_values + offset);
+        
+        for(size_type i = offset + 1; i < m_nb_elements; i++) {
+            construct_value(alloc, m_values + i - 1, std::move(m_values[i]));
+            destroy_value(alloc, m_values + i);
+        }
+    }
+    
+    template<typename... Args, typename U = value_type, 
+             typename std::enable_if<!std::is_nothrow_move_constructible<U>::value>::type* = nullptr>
+    void erase_at_offset(allocator_type& alloc, size_type offset) {
+        tsl_assert(offset < m_nb_elements);
+        
+        // Erasing the last element, don't need to reallocate. We keep the capacity.
+        if(offset == m_nb_elements - 1) {
+            destroy_value(alloc, m_values + offset);      
+            return;
+        }
+        
+        tsl_assert(m_nb_elements > 1);
+        const size_type new_capacity = m_nb_elements - 1;
+        
+        value_type* new_values = alloc.allocate(new_capacity);
+        tsl_assert(new_values != nullptr); // allocate should throw if there is a failure
+
+        size_type nb_new_values = 0;
+        try {
+            for(size_type i = 0; i < m_nb_elements; i++) {
+                if(i != offset) {
+                    construct_value(alloc, new_values + nb_new_values, m_values[i]);
+                    nb_new_values++;
+                }
+            }
+        }
+        catch(...) {
+            destroy_and_deallocate_values(alloc, new_values, nb_new_values, new_capacity);
+            throw;
+        }
+        
+        tsl_assert(nb_new_values == m_nb_elements - 1);
+        
+        destroy_and_deallocate_values(alloc, m_values, m_nb_elements, m_capacity);
+        
+        m_values = new_values;
+        m_capacity = new_capacity;
     }
     
 private:
@@ -734,6 +782,7 @@ private:
  * 
  * The strong exception guarantee only holds if `ExceptionSafety` is set to `tsl::sh::exception_safety::strong`.
  * 
+ * `ValueType` must be nothrow move contructible and/or copy constructible.
  * Behaviour is undefined if the destructor of `ValueType` throws.
  * 
  * 
@@ -758,12 +807,11 @@ private:
     template<typename U>
     using has_mapped_type = typename std::integral_constant<bool, !std::is_same<U, void>::value>;
     
-    static_assert(ExceptionSafety != tsl::sh::exception_safety::strong ||
-                  (std::is_nothrow_move_constructible<ValueType>::value &&
-                   std::is_copy_constructible<ValueType>::value), 
-                  "If ExceptionSafety is set to tsl::sh::exception_safety::strong, the value_type must be "
-                  "copy constructible and nothrow move constructible.");
     
+    static_assert(std::is_nothrow_move_constructible<ValueType>::value ||
+                  std::is_copy_constructible<ValueType>::value, 
+                  "Key, and T if present, must be nothrow move constructible and/or copy constructible.");
+
 public:   
     template<bool IsConst>
     class sparse_iterator;
@@ -1034,7 +1082,7 @@ public:
     }
     
     allocator_type get_allocator() const {
-        return static_cast<Allocator&>(*this);
+        return static_cast<const Allocator&>(*this);
     }
     
     
@@ -1227,9 +1275,9 @@ public:
         }
         
         //TODO optimize
-        const std::size_t nb_elements_to_erase = static_cast<std::size_t>(std::distance(first, last));
+        const size_type nb_elements_to_erase = static_cast<size_type>(std::distance(first, last));
         auto to_delete = mutable_iterator(first);
-        for(std::size_t i = 0; i < nb_elements_to_erase; i++) {
+        for(size_type i = 0; i < nb_elements_to_erase; i++) {
             to_delete = erase(to_delete);
         }
         
@@ -1478,7 +1526,7 @@ private:
         /**
          * We must insert the value in the first empty or deleted bucket we find. If we first find a 
          * deleted bucket, we still have to continue the search until we find an empty bucket to be sure
-         * that the value is not in the map. We thus remember the position, if any, of the first deleted 
+         * that the value is not in the hash table. We thus remember the position, if any, of the first deleted 
          * bucket we have encountered so we can insert it there if needed.
          */
         bool found_first_deleted_bucket = false;
@@ -1589,6 +1637,10 @@ private:
     template<tsl::sh::exception_safety U = ExceptionSafety, 
              typename std::enable_if<U == tsl::sh::exception_safety::basic>::type* = nullptr>
     void rehash_impl(size_type count) {
+        if(count == m_bucket_count) {
+            return;
+        }
+        
         sparse_hash new_table(count, static_cast<Hash&>(*this), static_cast<KeyEqual&>(*this), 
                               static_cast<Allocator&>(*this), m_max_load_factor);
             
@@ -1609,9 +1661,18 @@ private:
      * them if they are nothrow_move_constructible without triggering
      * any exception if we reserve enough space in the sparse arrays beforehand.
      */
+    static_assert(ExceptionSafety != tsl::sh::exception_safety::strong ||
+                   std::is_copy_constructible<ValueType>::value, 
+                  "If ExceptionSafety is set to tsl::sh::exception_safety::strong, Key, and T if present, "
+                  "must be copy constructible.");
+    
     template<tsl::sh::exception_safety U = ExceptionSafety, 
              typename std::enable_if<U == tsl::sh::exception_safety::strong>::type* = nullptr>
     void rehash_impl(size_type count) {
+        if(count == m_bucket_count) {
+            return;
+        }
+        
         sparse_hash new_table(count, static_cast<Hash&>(*this), static_cast<KeyEqual&>(*this), 
                               static_cast<Allocator&>(*this), m_max_load_factor);
             
