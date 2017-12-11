@@ -2,7 +2,7 @@
 
 ## A C++ implementation of a memory efficient hash map and hash set
 
-The sparse-map library is a C++ implementation of a memory efficient hash map and hash set. It uses open-addressing with quadratic probing. The goal of the library is to be the most memory efficient possible, even at low load factor, while keeping reasonable performances.
+The sparse-map library is a C++ implementation of a memory efficient hash map and hash set. It uses open-addressing with sparse quadratic probing. The goal of the library is to be the most memory efficient possible, even at low load factor, while keeping reasonable performances. You can find an [article](https://smerity.com/articles/2015/google_sparsehash.html) of Stephen Merity which explains the idea behind `google::sparse_hash_map` and this project.
 
 Four classes are provided: `tsl::sparse_map`, `tsl::sparse_set`, `tsl::sparse_pg_map` and `tsl::sparse_pg_set`. The first two are faster and use a power of two growth policy, the last two use a prime growth policy instead and are able to cope better with a poor hash function. Use the prime version if there is a chance of repeating patterns in the lower bits of your hash (e.g. you are storing pointers with an identity hash function). See [GrowthPolicy](#growth-policy) for details.
 
@@ -21,7 +21,7 @@ A **benchmark** of `tsl::sparse_map` against other hash maps may be found [here]
 ### Differences compare to `std::unordered_map`
 
 `tsl::sparse_map` tries to have an interface similar to `std::unordered_map`, but some differences exist.
-- By default only the basic exception safety is guaranteed which mean that all resources used by the hash map will be freed (no memory leaks). It is the same guarantee that the one provided by `google::sparse_hash_map` and `spp::sparse_hash_map`. If you need the strong exception guarantee, check the `ExceptionSafety` template parameter (see [API](https://tessil.github.io/sparse-map/classtsl_1_1sparse__map.html#details) for details).
+- **By default only the basic exception safety is guaranteed** which mean that all resources used by the hash map will be freed (no memory leaks). It is the same guarantee that the one provided by `google::sparse_hash_map` and `spp::sparse_hash_map` which don't provide the strong exception guarantee. For more information and if you need the strong exception guarantee, check the `ExceptionSafety` template parameter (see [API](https://tessil.github.io/sparse-map/classtsl_1_1sparse__map.html#details) for details).
 - Iterator invalidation doesn't behave in the same way, any operation modifying the hash table invalidate them (see [API](https://tessil.github.io/sparse-map/classtsl_1_1sparse__map.html#details) for details).
 - References and pointers to keys or values in the map are invalidated in the same way as iterators to these keys-values.
 - For iterators, `operator*()` and `operator->()` return a reference and a pointer to `const std::pair<Key, T>` instead of `std::pair<const Key, T>` making the value `T` not modifiable. To modify the value you have to call the `value()` method of the iterator to get a mutable reference. Example:
@@ -48,7 +48,7 @@ With Clang and GCC, the library uses the `__builtin_popcount` function which wil
 On Windows with MSVC, the detection is done at runtime.
 
 #### Move constructor
-Make sure that your key `Key` and potential value `T` have a `noexcept` move constructor. The library will work without it but insertions will be slower.
+Make sure that your key `Key` and potential value `T` have a `noexcept` move constructor. The library will work without it but insertions will be much slower if the copy constructor is expensive (the structure often needs to move some values around on insertion).
 
 ### Growth policy
 
@@ -129,6 +129,16 @@ int main() {
         std::cout << "{" << key_value.first << ", " << key_value.second << "}" << std::endl;
     }
     
+    if(map.find("a") != map.end()) {
+        std::cout << "Found \"a\"." << std::endl;
+    }
+    
+    const std::size_t precalculated_hash = std::hash<std::string>()("a");
+    // If we already know the hash beforehand, we can pass it in parameter to speed-up lookups.
+    if(map.find("a", precalculated_hash) != map.end()) {
+        std::cout << "Found \"a\" with hash " << precalculated_hash << "." << std::endl;
+    }
+    
     
     
     
@@ -140,7 +150,7 @@ int main() {
     for(const auto& key : set) {
         std::cout << "{" << key << "}" << std::endl;
     }
-} 
+}
 ```
 
 #### Heterogeneous lookups
@@ -162,6 +172,7 @@ struct employee {
     employee(int id, std::string name) : m_id(id), m_name(std::move(name)) {
     }
     
+    // Either we include the comparators in the class and we use `std::equal_to<>`...
     friend bool operator==(const employee& empl, int empl_id) {
         return empl.m_id == empl_id;
     }
@@ -179,16 +190,7 @@ struct employee {
     std::string m_name;
 };
 
-struct hash_employee {
-    std::size_t operator()(const employee& empl) const {
-        return std::hash<int>()(empl.m_id);
-    }
-    
-    std::size_t operator()(int id) const {
-        return std::hash<int>()(id);
-    }
-};
-
+// ... or we implement a separate class to compare employees.
 struct equal_employee {
     using is_transparent = void;
     
@@ -202,6 +204,16 @@ struct equal_employee {
     
     bool operator()(const employee& empl1, const employee& empl2) const {
         return empl1.m_id == empl2.m_id;
+    }
+};
+
+struct hash_employee {
+    std::size_t operator()(const employee& empl) const {
+        return std::hash<int>()(empl.m_id);
+    }
+    
+    std::size_t operator()(int id) const {
+        return std::hash<int>()(id);
     }
 };
 
@@ -229,7 +241,7 @@ int main() {
 
     // 2004
     std::cout << map2.at(4) << std::endl;
-}   
+}
 ```
 
 ### License
