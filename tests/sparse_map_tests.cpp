@@ -224,6 +224,7 @@ BOOST_AUTO_TEST_CASE(test_try_emplace) {
 }
 
 BOOST_AUTO_TEST_CASE(test_try_emplace_2) {
+    // Insert x values with try_emplace, insert them again, check with find.
     tsl::sparse_map<std::string, move_only_test> map;
     tsl::sparse_map<std::string, move_only_test>::iterator it;
     bool inserted;
@@ -557,6 +558,40 @@ BOOST_AUTO_TEST_CASE(test_modify_value) {
             BOOST_CHECK_NE(val.second, -1);
         }
     }
+}
+
+/**
+ * constructor
+ */
+BOOST_AUTO_TEST_CASE(test_extreme_bucket_count_value_construction) {
+    BOOST_CHECK_THROW((tsl::sparse_map<int, int, std::hash<int>, std::equal_to<int>, 
+                                         std::allocator<std::pair<int, int>>, 
+                                         tsl::sh::power_of_two_growth_policy<2>>
+                            (std::numeric_limits<std::size_t>::max())), std::length_error);
+    
+    BOOST_CHECK_THROW((tsl::sparse_map<int, int, std::hash<int>, std::equal_to<int>, 
+                                         std::allocator<std::pair<int, int>>, 
+                                         tsl::sh::power_of_two_growth_policy<2>>
+                            (std::numeric_limits<std::size_t>::max()/2 + 1)), std::length_error);
+    
+    
+    
+    BOOST_CHECK_THROW((tsl::sparse_map<int, int, std::hash<int>, std::equal_to<int>, 
+                                         std::allocator<std::pair<int, int>>, 
+                                         tsl::sh::prime_growth_policy>
+                            (std::numeric_limits<std::size_t>::max())), std::length_error);
+    
+    BOOST_CHECK_THROW((tsl::sparse_map<int, int, std::hash<int>, std::equal_to<int>, 
+                                         std::allocator<std::pair<int, int>>, 
+                                         tsl::sh::prime_growth_policy>
+                            (std::numeric_limits<std::size_t>::max()/2)), std::length_error);
+    
+    
+    
+    BOOST_CHECK_THROW((tsl::sparse_map<int, int, std::hash<int>, std::equal_to<int>, 
+                                         std::allocator<std::pair<int, int>>, 
+                                         tsl::sh::mod_growth_policy<>>
+                            (std::numeric_limits<std::size_t>::max())), std::length_error);
 }
 
 
