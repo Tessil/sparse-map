@@ -65,7 +65,7 @@ To implement your own policy, you have to implement the following interface.
 struct custom_policy {
     // Called on hash table construction, min_bucket_count_in_out is the minimum size
     // that the hash table needs. The policy can change it to a higher bucket count if needed
-    custom_policy(std::size_t& min_bucket_count_in_out);
+    explicit custom_policy(std::size_t& min_bucket_count_in_out);
     
     // Return the bucket for the corresponding hash
     std::size_t bucket_for_hash(std::size_t hash) const noexcept;

@@ -52,7 +52,7 @@ public:
      * Called on the hash table creation and on rehash. The number of buckets for the table is passed in parameter.
      * This number is a minimum, the policy may update this value with a higher value if needed (but not lower).
      */
-    power_of_two_growth_policy(std::size_t& min_bucket_count_in_out) {
+    explicit power_of_two_growth_policy(std::size_t& min_bucket_count_in_out) {
         if(min_bucket_count_in_out > max_bucket_count()) {
             throw std::length_error("The hash table exceeds its maxmimum size.");
         }
@@ -128,7 +128,7 @@ protected:
 template<class GrowthFactor = std::ratio<3, 2>>
 class mod_growth_policy {
 public:
-    mod_growth_policy(std::size_t& min_bucket_count_in_out) {
+    explicit mod_growth_policy(std::size_t& min_bucket_count_in_out) {
         if(min_bucket_count_in_out > max_bucket_count()) {
             throw std::length_error("The hash table exceeds its maxmimum size.");
         }
@@ -230,7 +230,7 @@ static constexpr const std::array<std::size_t(*)(std::size_t), 39> MOD_PRIME = {
  */
 class prime_growth_policy {
 public:
-    prime_growth_policy(std::size_t& min_bucket_count_in_out) {
+    explicit prime_growth_policy(std::size_t& min_bucket_count_in_out) {
         auto it_prime = std::lower_bound(detail::PRIMES.begin(), 
                                          detail::PRIMES.end(), min_bucket_count_in_out);
         if(it_prime == detail::PRIMES.end()) {
