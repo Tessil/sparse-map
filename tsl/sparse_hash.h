@@ -885,6 +885,11 @@ public:
         {
         }
         
+        sparse_iterator(const sparse_iterator&) = default;
+        sparse_iterator(sparse_iterator&&) = default;
+        sparse_iterator& operator=(const sparse_iterator&) = default;
+        sparse_iterator& operator=(sparse_iterator&&) = default;
+        
         const typename sparse_hash::key_type& key() const {
             return KeySelect()(*m_sparse_array_it);
         }
