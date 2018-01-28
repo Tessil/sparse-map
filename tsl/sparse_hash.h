@@ -879,16 +879,10 @@ public:
         sparse_iterator() noexcept {
         }
         
-        template<bool U = IsConst, typename std::enable_if<U>::type* = nullptr>
         sparse_iterator(const sparse_iterator<false>& other) noexcept: m_sparse_buckets_it(other.m_sparse_buckets_it),
                                                                        m_sparse_array_it(other.m_sparse_array_it)
         {
         }
-        
-        sparse_iterator(const sparse_iterator&) = default;
-        sparse_iterator(sparse_iterator&&) = default;
-        sparse_iterator& operator=(const sparse_iterator&) = default;
-        sparse_iterator& operator=(sparse_iterator&&) = default;
         
         const typename sparse_hash::key_type& key() const {
             return KeySelect()(*m_sparse_array_it);
