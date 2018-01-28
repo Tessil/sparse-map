@@ -839,6 +839,13 @@ private:
     using sparse_buckets_container = std::vector<sparse_array, sparse_buckets_allocator>;
     
 public:
+    /**
+     * The `operator*()` and `operator->()` methods return a const reference and const pointer respectively to the 
+     * stored value type.
+     * 
+     * In case of a map, to get a mutable reference to the value associated to a key (the `.second` in the 
+     * stored pair), you have to call `value()`.
+     */
     template<bool IsConst>
     class sparse_iterator {
         friend class sparse_hash;
@@ -872,6 +879,7 @@ public:
         sparse_iterator() noexcept {
         }
         
+        template<bool U = IsConst, typename std::enable_if<U>::type* = nullptr>
         sparse_iterator(const sparse_iterator<false>& other) noexcept: m_sparse_buckets_it(other.m_sparse_buckets_it),
                                                                        m_sparse_array_it(other.m_sparse_array_it)
         {
