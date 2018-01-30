@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/Tessil/sparse-map.svg?branch=master)](https://travis-ci.org/Tessil/sparse-map) [![Build status](https://ci.appveyor.com/api/projects/status/l52jl1eslsvudu6a/branch/master?svg=true)](https://ci.appveyor.com/project/Tessil/sparse-map/branch/master)
+[![Build Status](https://travis-ci.org/Tessil/sparse-map.svg?branch=master)](https://travis-ci.org/Tessil/sparse-map) [![Build status](https://ci.appveyor.com/api/projects/status/wp65gwsyyi7j1tli/branch/master?svg=true)](https://ci.appveyor.com/project/Tessil/sparse-map/branch/master)
 
 ## A C++ implementation of a memory efficient hash map and hash set
 
