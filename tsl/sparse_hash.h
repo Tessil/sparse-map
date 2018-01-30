@@ -1532,9 +1532,10 @@ private:
         
         /**
          * We must insert the value in the first empty or deleted bucket we find. If we first find a 
-         * deleted bucket, we still have to continue the search until we find an empty bucket to be sure
-         * that the value is not in the hash table. We thus remember the position, if any, of the first deleted 
-         * bucket we have encountered so we can insert it there if needed.
+         * deleted bucket, we still have to continue the search until we find an empty bucket or until we have 
+         * searched all the buckets to be sure that the value is not in the hash table. 
+         * We thus remember the position, if any, of the first deleted bucket we have encountered 
+         * so we can insert it there if needed.
          */
         bool found_first_deleted_bucket = false;
         std::size_t sparse_ibucket_first_deleted = 0;
@@ -1556,7 +1557,7 @@ private:
                     return std::make_pair(iterator(m_sparse_buckets.begin() + sparse_ibucket, value_it), false);
                 }
             }
-            else if(m_sparse_buckets[sparse_ibucket].has_deleted_value(index_in_sparse_bucket)) {
+            else if(m_sparse_buckets[sparse_ibucket].has_deleted_value(index_in_sparse_bucket) && probe < m_bucket_count) {
                 if(!found_first_deleted_bucket) {
                     found_first_deleted_bucket = true;
                     sparse_ibucket_first_deleted = sparse_ibucket;
