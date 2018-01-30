@@ -1,3 +1,5 @@
+**Due to some mistakes, the repository was deleted and recreated as it was before. Sorry for the inconvenience.**
+
 [![Build Status](https://travis-ci.org/Tessil/sparse-map.svg?branch=master)](https://travis-ci.org/Tessil/sparse-map) [![Build status](https://ci.appveyor.com/api/projects/status/wp65gwsyyi7j1tli/branch/master?svg=true)](https://ci.appveyor.com/project/Tessil/sparse-map/branch/master)
 
 ## A C++ implementation of a memory efficient hash map and hash set
