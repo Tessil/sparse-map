@@ -1,5 +1,3 @@
-**Due to some mistakes, the repository was deleted and recreated as it was before. Sorry for the inconvenience.**
-
 [![Build Status](https://travis-ci.org/Tessil/sparse-map.svg?branch=master)](https://travis-ci.org/Tessil/sparse-map) [![Build status](https://ci.appveyor.com/api/projects/status/wp65gwsyyi7j1tli/branch/master?svg=true)](https://ci.appveyor.com/project/Tessil/sparse-map/branch/master)
 
 ## A C++ implementation of a memory efficient hash map and hash set
@@ -35,6 +33,7 @@ for(auto it = map.begin(); it != map.end(); ++it) {
     it.value() = 2; // Ok
 }
 ```
+- Move-only types must have a nothrow move constructor.
 - No support for some buckets related methods (like bucket_size, bucket, ...).
 
 These differences also apply between `std::unordered_set` and `tsl::sparse_set`.
