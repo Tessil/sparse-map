@@ -53,14 +53,16 @@ namespace tsl {
  * but the hash map may end-up in an undefined state if an exception is thrown (undefined here means that some elements  
  * may be missing). This can ONLY happen on rehash (either on insert or if `rehash` is called explicitly) and will
  * occur if the Allocator can't allocate memory (`std::bad_alloc`) or if the copy constructor (when a nothrow 
- * move constructor is not available) throws and exception. This can be avoided by calling `reserve` beforehand.
+ * move constructor is not available) throws an exception. This can be avoided by calling `reserve` beforehand.
  * This basic guarantee is similar to the one of `google::sparse_hash_map` and `spp::sparse_hash_map`.
  * It is possible to ask for the strong exception guarantee with `tsl::sh::exception_safety::strong`, the drawback
  * is that the map will be slower on rehashes and will also need more memory on rehashes.
  * 
  * `Sparsity` defines how much the hash set will compromise between insertion speed and memory usage. A high
- * sparsity means less memory but longer insertion times, and vice-versa for low sparsity. The default 
- * tsl::sh::sparsity::medium sparsity offers a good compromise. It doesn't change the lookups speed.
+ * sparsity means less memory usage but longer insertion times, and vice-versa for low sparsity. The default 
+ * `tsl::sh::sparsity::medium` sparsity offers a good compromise. It doesn't change the lookup speed.
+ * 
+ * `Key` and `T` must be nothrow move constructible and/or copy constructible.
  * 
  * If the destructor of `Key` or `T` throws an exception, the behaviour of the class is undefined.
  * 
@@ -310,9 +312,9 @@ public:
     
     /**
      * Due to the way elements are stored, emplace will need to move or copy the key-value once.
-     * The method is equivalent to insert(value_type(std::forward<Args>(args)...));
+     * The method is equivalent to `insert(value_type(std::forward<Args>(args)...));`.
      * 
-     * Mainly here for compatibility with the std::unordered_map interface.
+     * Mainly here for compatibility with the `std::unordered_map` interface.
      */
     template<class... Args>
     std::pair<iterator, bool> emplace(Args&&... args) { 
@@ -323,9 +325,9 @@ public:
     
     /**
      * Due to the way elements are stored, emplace_hint will need to move or copy the key-value once.
-     * The method is equivalent to insert(hint, value_type(std::forward<Args>(args)...));
+     * The method is equivalent to `insert(hint, value_type(std::forward<Args>(args)...));`.
      * 
-     * Mainly here for compatibility with the std::unordered_map interface.
+     * Mainly here for compatibility with the `std::unordered_map` interface.
      */
     template<class... Args>
     iterator emplace_hint(const_iterator hint, Args&&... args) {
@@ -364,16 +366,17 @@ public:
     size_type erase(const key_type& key) { return m_ht.erase(key); }
     
     /**
-     * Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same
-     * as hash_function()(key). Usefull to speed-up the lookup to the value if you already have the hash.
-     */    
+     * Use the hash value `precalculated_hash` instead of hashing the key. The hash value should be the same
+     * as `hash_function()(key)`, otherwise the behaviour is undefined. Useful to speed-up the lookup 
+     * if you already have the hash.
+     */  
     size_type erase(const key_type& key, std::size_t precalculated_hash) { 
         return m_ht.erase(key, precalculated_hash); 
     }
     
     /**
-     * This overload only participates in the overload resolution if the typedef KeyEqual::is_transparent exists. 
-     * If so, K must be hashable and comparable to Key.
+     * This overload only participates in the overload resolution if the typedef `KeyEqual::is_transparent` exists. 
+     * If so, `K` must be hashable and comparable to `Key`.
      */
     template<class K, class KE = KeyEqual, typename std::enable_if<has_is_transparent<KE>::value>::type* = nullptr> 
     size_type erase(const K& key) { return m_ht.erase(key); }
@@ -381,8 +384,9 @@ public:
     /**
      * @copydoc erase(const K& key)
      * 
-     * Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same
-     * as hash_function()(key). Usefull to speed-up the lookup to the value if you already have the hash.
+     * Use the hash value `precalculated_hash` instead of hashing the key. The hash value should be the same
+     * as `hash_function()(key)`, otherwise the behaviour is undefined. Useful to speed-up the lookup 
+     * if you already have the hash.
      */    
     template<class K, class KE = KeyEqual, typename std::enable_if<has_is_transparent<KE>::value>::type* = nullptr> 
     size_type erase(const K& key, std::size_t precalculated_hash) { 
@@ -401,8 +405,9 @@ public:
     T& at(const Key& key) { return m_ht.at(key); }
     
     /**
-     * Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same
-     * as hash_function()(key). Usefull to speed-up the lookup if you already have the hash.
+     * Use the hash value `precalculated_hash` instead of hashing the key. The hash value should be the same
+     * as `hash_function()(key)`, otherwise the behaviour is undefined. Useful to speed-up the lookup 
+     * if you already have the hash.
      */
     T& at(const Key& key, std::size_t precalculated_hash) { return m_ht.at(key, precalculated_hash); }
     
@@ -416,8 +421,8 @@ public:
     
     
     /**
-     * This overload only participates in the overload resolution if the typedef KeyEqual::is_transparent exists. 
-     * If so, K must be hashable and comparable to Key.
+     * This overload only participates in the overload resolution if the typedef `KeyEqual::is_transparent` exists. 
+     * If so, `K` must be hashable and comparable to `Key`.
      */
     template<class K, class KE = KeyEqual, typename std::enable_if<has_is_transparent<KE>::value>::type* = nullptr> 
     T& at(const K& key) { return m_ht.at(key); }
@@ -425,8 +430,9 @@ public:
     /**
      * @copydoc at(const K& key)
      * 
-     * Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same
-     * as hash_function()(key). Usefull to speed-up the lookup if you already have the hash.
+     * Use the hash value `precalculated_hash` instead of hashing the key. The hash value should be the same
+     * as `hash_function()(key)`, otherwise the behaviour is undefined. Useful to speed-up the lookup 
+     * if you already have the hash.
      */    
     template<class K, class KE = KeyEqual, typename std::enable_if<has_is_transparent<KE>::value>::type* = nullptr> 
     T& at(const K& key, std::size_t precalculated_hash) { return m_ht.at(key, precalculated_hash); }
@@ -456,16 +462,17 @@ public:
     size_type count(const Key& key) const { return m_ht.count(key); }
     
     /**
-     * Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same
-     * as hash_function()(key). Usefull to speed-up the lookup if you already have the hash.
+     * Use the hash value `precalculated_hash` instead of hashing the key. The hash value should be the same
+     * as `hash_function()(key)`, otherwise the behaviour is undefined. Useful to speed-up the lookup 
+     * if you already have the hash.
      */
     size_type count(const Key& key, std::size_t precalculated_hash) const { 
         return m_ht.count(key, precalculated_hash); 
     }
     
     /**
-     * This overload only participates in the overload resolution if the typedef KeyEqual::is_transparent exists. 
-     * If so, K must be hashable and comparable to Key.
+     * This overload only participates in the overload resolution if the typedef `KeyEqual::is_transparent` exists. 
+     * If so, `K` must be hashable and comparable to `Key`.
      */
     template<class K, class KE = KeyEqual, typename std::enable_if<has_is_transparent<KE>::value>::type* = nullptr> 
     size_type count(const K& key) const { return m_ht.count(key); }
@@ -473,8 +480,9 @@ public:
     /**
      * @copydoc count(const K& key) const
      * 
-     * Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same
-     * as hash_function()(key). Usefull to speed-up the lookup if you already have the hash.
+     * Use the hash value `precalculated_hash` instead of hashing the key. The hash value should be the same
+     * as `hash_function()(key)`, otherwise the behaviour is undefined. Useful to speed-up the lookup 
+     * if you already have the hash.
      */     
     template<class K, class KE = KeyEqual, typename std::enable_if<has_is_transparent<KE>::value>::type* = nullptr> 
     size_type count(const K& key, std::size_t precalculated_hash) const { return m_ht.count(key, precalculated_hash); }
@@ -485,8 +493,9 @@ public:
     iterator find(const Key& key) { return m_ht.find(key); }
     
     /**
-     * Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same
-     * as hash_function()(key). Usefull to speed-up the lookup if you already have the hash.
+     * Use the hash value `precalculated_hash` instead of hashing the key. The hash value should be the same
+     * as `hash_function()(key)`, otherwise the behaviour is undefined. Useful to speed-up the lookup 
+     * if you already have the hash.
      */
     iterator find(const Key& key, std::size_t precalculated_hash) { return m_ht.find(key, precalculated_hash); }
     
@@ -500,8 +509,8 @@ public:
     }
     
     /**
-     * This overload only participates in the overload resolution if the typedef KeyEqual::is_transparent exists. 
-     * If so, K must be hashable and comparable to Key.
+     * This overload only participates in the overload resolution if the typedef `KeyEqual::is_transparent` exists. 
+     * If so, `K` must be hashable and comparable to `Key`.
      */
     template<class K, class KE = KeyEqual, typename std::enable_if<has_is_transparent<KE>::value>::type* = nullptr> 
     iterator find(const K& key) { return m_ht.find(key); }
@@ -509,8 +518,9 @@ public:
     /**
      * @copydoc find(const K& key)
      * 
-     * Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same
-     * as hash_function()(key). Usefull to speed-up the lookup if you already have the hash.
+     * Use the hash value `precalculated_hash` instead of hashing the key. The hash value should be the same
+     * as `hash_function()(key)`, otherwise the behaviour is undefined. Useful to speed-up the lookup 
+     * if you already have the hash.
      */
     template<class K, class KE = KeyEqual, typename std::enable_if<has_is_transparent<KE>::value>::type* = nullptr> 
     iterator find(const K& key, std::size_t precalculated_hash) { return m_ht.find(key, precalculated_hash); }
@@ -524,8 +534,9 @@ public:
     /**
      * @copydoc find(const K& key)
      * 
-     * Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same
-     * as hash_function()(key). Usefull to speed-up the lookup if you already have the hash.
+     * Use the hash value `precalculated_hash` instead of hashing the key. The hash value should be the same
+     * as `hash_function()(key)`, otherwise the behaviour is undefined. Useful to speed-up the lookup 
+     * if you already have the hash.
      */
     template<class K, class KE = KeyEqual, typename std::enable_if<has_is_transparent<KE>::value>::type* = nullptr> 
     const_iterator find(const K& key, std::size_t precalculated_hash) const { 
@@ -538,8 +549,9 @@ public:
     std::pair<iterator, iterator> equal_range(const Key& key) { return m_ht.equal_range(key); }
     
     /**
-     * Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same
-     * as hash_function()(key). Usefull to speed-up the lookup if you already have the hash.
+     * Use the hash value `precalculated_hash` instead of hashing the key. The hash value should be the same
+     * as `hash_function()(key)`, otherwise the behaviour is undefined. Useful to speed-up the lookup 
+     * if you already have the hash.
      */
     std::pair<iterator, iterator> equal_range(const Key& key, std::size_t precalculated_hash) { 
         return m_ht.equal_range(key, precalculated_hash); 
@@ -555,8 +567,8 @@ public:
     }
 
     /**
-     * This overload only participates in the overload resolution if the typedef KeyEqual::is_transparent exists. 
-     * If so, K must be hashable and comparable to Key.
+     * This overload only participates in the overload resolution if the typedef `KeyEqual::is_transparent` exists. 
+     * If so, `K` must be hashable and comparable to `Key`.
      */
     template<class K, class KE = KeyEqual, typename std::enable_if<has_is_transparent<KE>::value>::type* = nullptr> 
     std::pair<iterator, iterator> equal_range(const K& key) { return m_ht.equal_range(key); }
@@ -565,8 +577,9 @@ public:
     /**
      * @copydoc equal_range(const K& key)
      * 
-     * Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same
-     * as hash_function()(key). Usefull to speed-up the lookup if you already have the hash.
+     * Use the hash value `precalculated_hash` instead of hashing the key. The hash value should be the same
+     * as `hash_function()(key)`, otherwise the behaviour is undefined. Useful to speed-up the lookup 
+     * if you already have the hash.
      */
     template<class K, class KE = KeyEqual, typename std::enable_if<has_is_transparent<KE>::value>::type* = nullptr> 
     std::pair<iterator, iterator> equal_range(const K& key, std::size_t precalculated_hash) { 
@@ -619,7 +632,7 @@ public:
      */
     
     /**
-     * Convert a const_iterator to an iterator.
+     * Convert a `const_iterator` to an `iterator`.
      */
     iterator mutable_iterator(const_iterator pos) {
         return m_ht.mutable_iterator(pos);

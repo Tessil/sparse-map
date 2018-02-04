@@ -260,6 +260,8 @@ inline std::size_t round_up_to_power_of_two(std::size_t value) {
  * T must be nothrow move contructible and/or copy constructible.
  * Behaviour is undefined if the destructor of T throws an exception.
  * 
+ * See https://smerity.com/articles/2015/google_sparsehash.html for details on the idea behinds the implementation.
+ * 
  * TODO Check to use std::realloc and std::memmove when possible
  */
 template<typename T, typename Allocator, tsl::sh::sparsity Sparsity>
@@ -787,7 +789,7 @@ private:
 /**
  * Internal common class used by `sparse_map` and `sparse_set`. 
  * 
- * ValueType is what will be stored by `sparse_hash` (usually `std::pair<Key, T>` for map and `Key` for set).
+ * `ValueType` is what will be stored by `sparse_hash` (usually `std::pair<Key, T>` for map and `Key` for set).
  * 
  * `KeySelect` should be a `FunctionObject` which takes a `ValueType` in parameter and returns a 
  *  reference to the key.
@@ -856,9 +858,9 @@ private:
 public:
     /**
      * The `operator*()` and `operator->()` methods return a const reference and const pointer respectively to the 
-     * stored value type.
+     * stored value type (`Key` for a set, `std::pair<Key, T>` for a map).
      * 
-     * In case of a map, to get a mutable reference to the value associated to a key (the `.second` in the 
+     * In case of a map, to get a mutable reference to the value `T` associated to a key (the `.second` in the 
      * stored pair), you have to call `value()`.
      */
     template<bool IsConst>

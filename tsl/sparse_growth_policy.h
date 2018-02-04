@@ -123,7 +123,7 @@ protected:
 
 /**
  * Grow the hash table by GrowthFactor::num / GrowthFactor::den and use a modulo to map a hash
- * to a bucket. Slower but it can be usefull if you want a slower growth.
+ * to a bucket. Slower but it can be useful if you want a slower growth.
  */
 template<class GrowthFactor = std::ratio<3, 2>>
 class mod_growth_policy {
