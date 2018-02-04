@@ -284,34 +284,49 @@ private:
 #if SIZE_MAX <= UINT32_MAX
     using bitmap_type = std::uint_least32_t;
     static const std::size_t BITMAP_NB_BITS = 32;
-    static const std::size_t SHIFT = 5;
+    static const std::size_t BUCKET_SHIFT = 5;
 #else
     using bitmap_type = std::uint_least64_t;
     static const std::size_t BITMAP_NB_BITS = 64;
-    static const std::size_t SHIFT = 6;
+    static const std::size_t BUCKET_SHIFT = 6;
 #endif    
     
-    static const std::size_t MASK = BITMAP_NB_BITS - 1;
+    static const std::size_t BUCKET_MASK = BITMAP_NB_BITS - 1;
     
     static_assert(is_power_of_two(BITMAP_NB_BITS), "BITMAP_NB_BITS must be a power of two.");
     static_assert(std::numeric_limits<bitmap_type>::digits >= BITMAP_NB_BITS, 
                         "bitmap_type must be able to hold at least BITMAP_NB_BITS.");
-    static_assert((std::size_t(1) << SHIFT) == BITMAP_NB_BITS, "(1 << SHIFT) must be equal to BITMAP_NB_BITS.");
+    static_assert((std::size_t(1) << BUCKET_SHIFT) == BITMAP_NB_BITS, 
+                        "(1 << BUCKET_SHIFT) must be equal to BITMAP_NB_BITS.");
     static_assert(std::numeric_limits<size_type>::max() >= BITMAP_NB_BITS, 
                         "size_type must be big enough to hold BITMAP_NB_BITS.");
-    static_assert(std::is_unsigned<bitmap_type>::value, "");
-    static_assert((std::numeric_limits<bitmap_type>::max() & MASK) == BITMAP_NB_BITS - 1, "");
+    static_assert(std::is_unsigned<bitmap_type>::value, "bitmap_type must be unsigned.");
+    static_assert((std::numeric_limits<bitmap_type>::max() & BUCKET_MASK) == BITMAP_NB_BITS - 1, "");
     
     
 public:
     static const std::size_t DEFAULT_INIT_BUCKETS_SIZE = BITMAP_NB_BITS;
 
+    /**
+     * Map an ibucket [0, bucket_count) in the hash table to a sparse_ibucket 
+     * (a sparse_array holds multiple buckets, so there is less sparse_array than bucket_count).
+     * 
+     * The bucket ibucket is in m_sparse_buckets[sparse_ibucket(ibucket)][index_in_sparse_bucket(ibucket)]
+     * instead of something like m_buckets[ibucket] in a classical hash table.
+     */
     static std::size_t sparse_ibucket(std::size_t ibucket) {
-        return ibucket >> SHIFT;
+        return ibucket >> BUCKET_SHIFT;
     }
     
+    /**
+     * Map an ibucket [0, bucket_count) in the hash table to an index in the sparse_array
+     * which corresponds to the bucket.
+     * 
+     * The bucket ibucket is in m_sparse_buckets[sparse_ibucket(ibucket)][index_in_sparse_bucket(ibucket)]
+     * instead of something like m_buckets[ibucket] in a classical hash table.
+     */
     static typename sparse_array::size_type index_in_sparse_bucket(std::size_t ibucket) {
-        return static_cast<typename sparse_array::size_type>(ibucket & sparse_array::MASK);
+        return static_cast<typename sparse_array::size_type>(ibucket & sparse_array::BUCKET_MASK);
     }
     
     
@@ -707,7 +722,7 @@ private:
      */
     template<typename... Args, typename U = value_type, 
              typename std::enable_if<std::is_nothrow_move_constructible<U>::value>::type* = nullptr>
-    void erase_at_offset(allocator_type& alloc, size_type offset) {
+    void erase_at_offset(allocator_type& alloc, size_type offset) noexcept {
         tsl_assert(offset < m_nb_elements);
         
         destroy_value(alloc, m_values + offset);
@@ -724,7 +739,7 @@ private:
         tsl_assert(offset < m_nb_elements);
         
         // Erasing the last element, don't need to reallocate. We keep the capacity.
-        if(offset == m_nb_elements - 1) {
+        if(offset + 1 == m_nb_elements) {
             destroy_value(alloc, m_values + offset);      
             return;
         }
@@ -907,6 +922,7 @@ public:
         }
         
         sparse_iterator& operator++() {
+            tsl_assert(m_sparse_array_it != nullptr);
             ++m_sparse_array_it;
             
             if(m_sparse_array_it == m_sparse_buckets_it->end()) {
@@ -1030,15 +1046,21 @@ public:
             if(std::allocator_traits<Allocator>::propagate_on_container_copy_assignment::value) {
                 Allocator::operator=(other);
             }
+            
             Hash::operator=(other);
             KeyEqual::operator=(other);
             GrowthPolicy::operator=(other);
             
             if(std::allocator_traits<Allocator>::propagate_on_container_copy_assignment::value) {
-                m_sparse_buckets = sparse_buckets_container(other);
+                m_sparse_buckets = sparse_buckets_container(static_cast<const Allocator&>(other));
             }
             else {
-                m_sparse_buckets.clear();
+                if(m_sparse_buckets.size() != other.m_sparse_buckets.size()) {
+                    m_sparse_buckets = sparse_buckets_container(static_cast<const Allocator&>(*this));
+                }
+                else {
+                    m_sparse_buckets.clear();
+                }
             }
             
             m_sparse_buckets.reserve(other.m_sparse_buckets.size());
@@ -1059,6 +1081,7 @@ public:
     
     sparse_hash& operator=(sparse_hash&& other) {
         clear();
+        
         if(std::allocator_traits<Allocator>::propagate_on_container_move_assignment::value) {
             static_cast<Allocator&>(*this) = std::move(static_cast<Allocator&>(other));
             m_sparse_buckets = std::move(other.m_sparse_buckets);
@@ -1446,7 +1469,7 @@ public:
     }
     
     void max_load_factor(float ml) {
-        m_max_load_factor = std::max(0.1f, std::min(ml, 0.95f));
+        m_max_load_factor = std::max(0.05f, std::min(ml, 0.95f));
         m_load_threshold = size_type(float(bucket_count())*m_max_load_factor);
     }
     
@@ -1557,30 +1580,42 @@ private:
                     return std::make_pair(iterator(m_sparse_buckets.begin() + sparse_ibucket, value_it), false);
                 }
             }
-            else if(m_sparse_buckets[sparse_ibucket].has_deleted_value(index_in_sparse_bucket) && probe < m_bucket_count) {
+            else if(m_sparse_buckets[sparse_ibucket].has_deleted_value(index_in_sparse_bucket) && 
+                    probe < m_bucket_count) 
+            {
                 if(!found_first_deleted_bucket) {
                     found_first_deleted_bucket = true;
                     sparse_ibucket_first_deleted = sparse_ibucket;
                     index_in_sparse_bucket_first_deleted = index_in_sparse_bucket;
                 }
             }
+            else if(found_first_deleted_bucket) {
+                return insert_in_bucket(sparse_ibucket_first_deleted, index_in_sparse_bucket_first_deleted, 
+                                        std::forward<Args>(value_type_args)...);
+            }
             else {
-                if(found_first_deleted_bucket) {
-                    sparse_ibucket = sparse_ibucket_first_deleted;
-                    index_in_sparse_bucket = index_in_sparse_bucket_first_deleted;
-                }
-                
-                auto value_it = m_sparse_buckets[sparse_ibucket].set(*this, index_in_sparse_bucket, 
-                                                                     std::forward<Args>(value_type_args)...);
-                m_nb_elements++;
-                
-                return std::make_pair(iterator(m_sparse_buckets.begin() + sparse_ibucket, value_it), true);
+                return insert_in_bucket(sparse_ibucket, index_in_sparse_bucket, 
+                                        std::forward<Args>(value_type_args)...);
             }
             
             probe++;
             ibucket = next_bucket(ibucket, probe);
         }
     }
+    
+    template<class... Args>
+    std::pair<iterator, bool> insert_in_bucket(std::size_t sparse_ibucket, 
+                                               typename sparse_array::size_type index_in_sparse_bucket, 
+                                               Args&&... value_type_args) 
+    {
+        auto value_it = m_sparse_buckets[sparse_ibucket].set(*this, index_in_sparse_bucket, 
+                                                             std::forward<Args>(value_type_args)...);
+        m_nb_elements++;
+        
+        return std::make_pair(iterator(m_sparse_buckets.begin() + sparse_ibucket, value_it), true);
+    }
+    
+    
     
     
     
@@ -1669,11 +1704,6 @@ private:
      * them if they are nothrow_move_constructible without triggering
      * any exception if we reserve enough space in the sparse arrays beforehand.
      */
-    static_assert(ExceptionSafety != tsl::sh::exception_safety::strong ||
-                   std::is_copy_constructible<ValueType>::value, 
-                  "If ExceptionSafety is set to tsl::sh::exception_safety::strong, Key, and T if present, "
-                  "must be copy constructible.");
-    
     template<tsl::sh::exception_safety U = ExceptionSafety, 
              typename std::enable_if<U == tsl::sh::exception_safety::strong>::type* = nullptr>
     void rehash_impl(size_type count) {
@@ -1684,8 +1714,8 @@ private:
         sparse_hash new_table(count, static_cast<Hash&>(*this), static_cast<KeyEqual&>(*this), 
                               static_cast<Allocator&>(*this), m_max_load_factor);
             
-        for(auto& bucket: m_sparse_buckets) {
-            for(auto& val: bucket) {
+        for(const auto& bucket: m_sparse_buckets) {
+            for(const auto& val: bucket) {
                 new_table.insert_on_rehash(val);
             }
         }
