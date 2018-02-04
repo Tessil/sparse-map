@@ -103,8 +103,8 @@ Friends</h2></td></tr>
 template&lt;bool IsConst&gt;<br />
 class tsl::detail_sparse_hash::sparse_hash&lt; ValueType, KeySelect, ValueSelect, Hash, KeyEqual, Allocator, GrowthPolicy, ExceptionSafety, Sparsity, Probing &gt;::sparse_iterator&lt; IsConst &gt;</h3>
 
-<p>The <code><a class="el" href="classtsl_1_1detail__sparse__hash_1_1sparse__hash_1_1sparse__iterator.html#a625313edda886ab257406cf3be9b5fcb">operator*()</a></code> and <code>operator-&gt;()</code> methods return a const reference and const pointer respectively to the stored value type.</p>
-<p>In case of a map, to get a mutable reference to the value associated to a key (the <code>.second</code> in the stored pair), you have to call <code><a class="el" href="classtsl_1_1detail__sparse__hash_1_1sparse__hash_1_1sparse__iterator.html#a571f94990a52161a1aee28ae28628744">value()</a></code>. </p>
+<p>The <code><a class="el" href="classtsl_1_1detail__sparse__hash_1_1sparse__hash_1_1sparse__iterator.html#a625313edda886ab257406cf3be9b5fcb">operator*()</a></code> and <code>operator-&gt;()</code> methods return a const reference and const pointer respectively to the stored value type (<code>Key</code> for a set, <code>std::pair&lt;Key, T&gt;</code> for a map).</p>
+<p>In case of a map, to get a mutable reference to the value <code>T</code> associated to a key (the <code>.second</code> in the stored pair), you have to call <code><a class="el" href="classtsl_1_1detail__sparse__hash_1_1sparse__hash_1_1sparse__iterator.html#a571f94990a52161a1aee28ae28628744">value()</a></code>. </p>
 </div><h2 class="groupheader">Member Typedef Documentation</h2>
 <a id="a098f3f12737ac0af0158409fc9e687c7"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a098f3f12737ac0af0158409fc9e687c7">&#9670;&nbsp;</a></span>difference_type</h2>

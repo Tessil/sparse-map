@@ -313,8 +313,9 @@ class tsl::sparse_map&lt; Key, T, Hash, KeyEqual, Allocator, GrowthPolicy, Excep
 
 <p>Implementation of a sparse hash map using open-addressing with quadratic probing. The goal on the hash map is to be the most memory efficient possible, even at low load factor, while keeping reasonable performances.</p>
 <p><code>GrowthPolicy</code> defines how the map grows and consequently how a hash value is mapped to a bucket. By default the map uses <code><a class="el" href="classtsl_1_1sh_1_1power__of__two__growth__policy.html">tsl::sh::power_of_two_growth_policy</a></code>. This policy keeps the number of buckets to a power of two and uses a mask to map the hash to a bucket instead of the slow modulo. Other growth policies are available and you may define your own growth policy, check <code><a class="el" href="classtsl_1_1sh_1_1power__of__two__growth__policy.html">tsl::sh::power_of_two_growth_policy</a></code> for the interface.</p>
-<p><code>ExceptionSafety</code> defines the exception guarantee provided by the class. By default only the basic exception safety is guaranteed which mean that all resources used by the hash map will be freed (no memory leaks) but the hash map may end-up in an undefined state if an exception is thrown (undefined here means that some elements may be missing). This can ONLY happen on rehash (either on insert or if <code>rehash</code> is called explicitly) and will occur if the Allocator can't allocate memory (<code>std::bad_alloc</code>) or if the copy constructor (when a nothrow move constructor is not available) throws and exception. This can be avoided by calling <code>reserve</code> beforehand. This basic guarantee is similar to the one of <code>google::sparse_hash_map</code> and <code>spp::sparse_hash_map</code>. It is possible to ask for the strong exception guarantee with <code><a class="el" href="namespacetsl_1_1sh.html#a0cd6797987a18d737875675e670370f4a6f7f9432d35dea629c8384dab312259a">tsl::sh::exception_safety::strong</a></code>, the drawback is that the map will be slower on rehashes and will also need more memory on rehashes.</p>
-<p><code>Sparsity</code> defines how much the hash set will compromise between insertion speed and memory usage. A high sparsity means less memory but longer insertion times, and vice-versa for low sparsity. The default <a class="el" href="namespacetsl_1_1sh.html#ab22afd9f8aba09d8abada8f51dd67539a075a3e36a0a52dcbc568c05788e8a713">tsl::sh::sparsity::medium</a> sparsity offers a good compromise. It doesn't change the lookups speed.</p>
+<p><code>ExceptionSafety</code> defines the exception guarantee provided by the class. By default only the basic exception safety is guaranteed which mean that all resources used by the hash map will be freed (no memory leaks) but the hash map may end-up in an undefined state if an exception is thrown (undefined here means that some elements may be missing). This can ONLY happen on rehash (either on insert or if <code>rehash</code> is called explicitly) and will occur if the Allocator can't allocate memory (<code>std::bad_alloc</code>) or if the copy constructor (when a nothrow move constructor is not available) throws an exception. This can be avoided by calling <code>reserve</code> beforehand. This basic guarantee is similar to the one of <code>google::sparse_hash_map</code> and <code>spp::sparse_hash_map</code>. It is possible to ask for the strong exception guarantee with <code><a class="el" href="namespacetsl_1_1sh.html#a0cd6797987a18d737875675e670370f4a6f7f9432d35dea629c8384dab312259a">tsl::sh::exception_safety::strong</a></code>, the drawback is that the map will be slower on rehashes and will also need more memory on rehashes.</p>
+<p><code>Sparsity</code> defines how much the hash set will compromise between insertion speed and memory usage. A high sparsity means less memory usage but longer insertion times, and vice-versa for low sparsity. The default <code><a class="el" href="namespacetsl_1_1sh.html#ab22afd9f8aba09d8abada8f51dd67539a075a3e36a0a52dcbc568c05788e8a713">tsl::sh::sparsity::medium</a></code> sparsity offers a good compromise. It doesn't change the lookup speed.</p>
+<p><code>Key</code> and <code>T</code> must be nothrow move constructible and/or copy constructible.</p>
 <p>If the destructor of <code>Key</code> or <code>T</code> throws an exception, the behaviour of the class is undefined.</p>
 <p>Iterators invalidation:</p><ul>
 <li>clear, operator=, reserve, rehash: always invalidate the iterators.</li>
@@ -1122,7 +1123,7 @@ template&lt;class Key , class T , class Hash  = std::hash&lt;Key&gt;, class KeyE
   </tr>
 </table>
 </div><div class="memdoc">
-<p>Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same as <a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key). Usefull to speed-up the lookup if you already have the hash. </p>
+<p>Use the hash value <code>precalculated_hash</code> instead of hashing the key. The hash value should be the same as <code><a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key)</code>, otherwise the behaviour is undefined. Useful to speed-up the lookup if you already have the hash. </p>
 
 </div>
 </div>
@@ -1191,7 +1192,7 @@ template&lt;class Key , class T , class Hash  = std::hash&lt;Key&gt;, class KeyE
 </div><div class="memdoc">
 
 <p></p>
-<p>Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same as <a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key). Usefull to speed-up the lookup if you already have the hash. </p>
+<p>Use the hash value <code>precalculated_hash</code> instead of hashing the key. The hash value should be the same as <code><a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key)</code>, otherwise the behaviour is undefined. Useful to speed-up the lookup if you already have the hash. </p>
 
 </div>
 </div>
@@ -1222,7 +1223,7 @@ template&lt;class K , class KE  = KeyEqual, typename std::enable_if&lt; has_is_t
   </tr>
 </table>
 </div><div class="memdoc">
-<p>This overload only participates in the overload resolution if the typedef KeyEqual::is_transparent exists. If so, K must be hashable and comparable to Key. </p>
+<p>This overload only participates in the overload resolution if the typedef <code>KeyEqual::is_transparent</code> exists. If so, <code>K</code> must be hashable and comparable to <code>Key</code>. </p>
 
 </div>
 </div>
@@ -1265,8 +1266,8 @@ template&lt;class K , class KE  = KeyEqual, typename std::enable_if&lt; has_is_t
 </div><div class="memdoc">
 
 <p></p>
-<p>This overload only participates in the overload resolution if the typedef KeyEqual::is_transparent exists. If so, K must be hashable and comparable to Key.</p>
-<p>Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same as <a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key). Usefull to speed-up the lookup if you already have the hash. </p>
+<p>This overload only participates in the overload resolution if the typedef <code>KeyEqual::is_transparent</code> exists. If so, <code>K</code> must be hashable and comparable to <code>Key</code>.</p>
+<p>Use the hash value <code>precalculated_hash</code> instead of hashing the key. The hash value should be the same as <code><a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key)</code>, otherwise the behaviour is undefined. Useful to speed-up the lookup if you already have the hash. </p>
 
 </div>
 </div>
@@ -1299,7 +1300,7 @@ template&lt;class K , class KE  = KeyEqual, typename std::enable_if&lt; has_is_t
 </div><div class="memdoc">
 
 <p></p>
-<p>This overload only participates in the overload resolution if the typedef KeyEqual::is_transparent exists. If so, K must be hashable and comparable to Key. </p>
+<p>This overload only participates in the overload resolution if the typedef <code>KeyEqual::is_transparent</code> exists. If so, <code>K</code> must be hashable and comparable to <code>Key</code>. </p>
 
 </div>
 </div>
@@ -1342,8 +1343,8 @@ template&lt;class K , class KE  = KeyEqual, typename std::enable_if&lt; has_is_t
 </div><div class="memdoc">
 
 <p></p>
-<p>This overload only participates in the overload resolution if the typedef KeyEqual::is_transparent exists. If so, K must be hashable and comparable to Key.</p>
-<p>Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same as <a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key). Usefull to speed-up the lookup if you already have the hash. </p>
+<p>This overload only participates in the overload resolution if the typedef <code>KeyEqual::is_transparent</code> exists. If so, <code>K</code> must be hashable and comparable to <code>Key</code>.</p>
+<p>Use the hash value <code>precalculated_hash</code> instead of hashing the key. The hash value should be the same as <code><a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key)</code>, otherwise the behaviour is undefined. Useful to speed-up the lookup if you already have the hash. </p>
 
 </div>
 </div>
@@ -1572,7 +1573,7 @@ template&lt;class Key , class T , class Hash  = std::hash&lt;Key&gt;, class KeyE
   </tr>
 </table>
 </div><div class="memdoc">
-<p>Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same as <a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key). Usefull to speed-up the lookup if you already have the hash. </p>
+<p>Use the hash value <code>precalculated_hash</code> instead of hashing the key. The hash value should be the same as <code><a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key)</code>, otherwise the behaviour is undefined. Useful to speed-up the lookup if you already have the hash. </p>
 
 </div>
 </div>
@@ -1603,7 +1604,7 @@ template&lt;class K , class KE  = KeyEqual, typename std::enable_if&lt; has_is_t
   </tr>
 </table>
 </div><div class="memdoc">
-<p>This overload only participates in the overload resolution if the typedef KeyEqual::is_transparent exists. If so, K must be hashable and comparable to Key. </p>
+<p>This overload only participates in the overload resolution if the typedef <code>KeyEqual::is_transparent</code> exists. If so, <code>K</code> must be hashable and comparable to <code>Key</code>. </p>
 
 </div>
 </div>
@@ -1646,8 +1647,8 @@ template&lt;class K , class KE  = KeyEqual, typename std::enable_if&lt; has_is_t
 </div><div class="memdoc">
 
 <p></p>
-<p>This overload only participates in the overload resolution if the typedef KeyEqual::is_transparent exists. If so, K must be hashable and comparable to Key.</p>
-<p>Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same as <a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key). Usefull to speed-up the lookup if you already have the hash. </p>
+<p>This overload only participates in the overload resolution if the typedef <code>KeyEqual::is_transparent</code> exists. If so, <code>K</code> must be hashable and comparable to <code>Key</code>.</p>
+<p>Use the hash value <code>precalculated_hash</code> instead of hashing the key. The hash value should be the same as <code><a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key)</code>, otherwise the behaviour is undefined. Useful to speed-up the lookup if you already have the hash. </p>
 
 </div>
 </div>
@@ -1678,8 +1679,8 @@ template&lt;class... Args&gt; </div>
   </tr>
 </table>
 </div><div class="memdoc">
-<p>Due to the way elements are stored, emplace will need to move or copy the key-value once. The method is equivalent to insert(value_type(std::forward&lt;Args&gt;(args)...));</p>
-<p>Mainly here for compatibility with the std::unordered_map interface. </p>
+<p>Due to the way elements are stored, emplace will need to move or copy the key-value once. The method is equivalent to <code>insert(value_type(std::forward&lt;Args&gt;(args)...));</code>.</p>
+<p>Mainly here for compatibility with the <code>std::unordered_map</code> interface. </p>
 
 </div>
 </div>
@@ -1720,8 +1721,8 @@ template&lt;class... Args&gt; </div>
   </tr>
 </table>
 </div><div class="memdoc">
-<p>Due to the way elements are stored, emplace_hint will need to move or copy the key-value once. The method is equivalent to insert(hint, value_type(std::forward&lt;Args&gt;(args)...));</p>
-<p>Mainly here for compatibility with the std::unordered_map interface. </p>
+<p>Due to the way elements are stored, emplace_hint will need to move or copy the key-value once. The method is equivalent to <code>insert(hint, value_type(std::forward&lt;Args&gt;(args)...));</code>.</p>
+<p>Mainly here for compatibility with the <code>std::unordered_map</code> interface. </p>
 
 </div>
 </div>
@@ -1869,7 +1870,7 @@ template&lt;class Key , class T , class Hash  = std::hash&lt;Key&gt;, class KeyE
   </tr>
 </table>
 </div><div class="memdoc">
-<p>Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same as <a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key). Usefull to speed-up the lookup if you already have the hash. </p>
+<p>Use the hash value <code>precalculated_hash</code> instead of hashing the key. The hash value should be the same as <code><a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key)</code>, otherwise the behaviour is undefined. Useful to speed-up the lookup if you already have the hash. </p>
 
 </div>
 </div>
@@ -1938,7 +1939,7 @@ template&lt;class Key , class T , class Hash  = std::hash&lt;Key&gt;, class KeyE
 </div><div class="memdoc">
 
 <p></p>
-<p>Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same as <a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key). Usefull to speed-up the lookup if you already have the hash. </p>
+<p>Use the hash value <code>precalculated_hash</code> instead of hashing the key. The hash value should be the same as <code><a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key)</code>, otherwise the behaviour is undefined. Useful to speed-up the lookup if you already have the hash. </p>
 
 </div>
 </div>
@@ -1969,7 +1970,7 @@ template&lt;class K , class KE  = KeyEqual, typename std::enable_if&lt; has_is_t
   </tr>
 </table>
 </div><div class="memdoc">
-<p>This overload only participates in the overload resolution if the typedef KeyEqual::is_transparent exists. If so, K must be hashable and comparable to Key. </p>
+<p>This overload only participates in the overload resolution if the typedef <code>KeyEqual::is_transparent</code> exists. If so, <code>K</code> must be hashable and comparable to <code>Key</code>. </p>
 
 </div>
 </div>
@@ -2012,8 +2013,8 @@ template&lt;class K , class KE  = KeyEqual, typename std::enable_if&lt; has_is_t
 </div><div class="memdoc">
 
 <p></p>
-<p>This overload only participates in the overload resolution if the typedef KeyEqual::is_transparent exists. If so, K must be hashable and comparable to Key.</p>
-<p>Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same as <a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key). Usefull to speed-up the lookup if you already have the hash. </p>
+<p>This overload only participates in the overload resolution if the typedef <code>KeyEqual::is_transparent</code> exists. If so, <code>K</code> must be hashable and comparable to <code>Key</code>.</p>
+<p>Use the hash value <code>precalculated_hash</code> instead of hashing the key. The hash value should be the same as <code><a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key)</code>, otherwise the behaviour is undefined. Useful to speed-up the lookup if you already have the hash. </p>
 
 </div>
 </div>
@@ -2046,7 +2047,7 @@ template&lt;class K , class KE  = KeyEqual, typename std::enable_if&lt; has_is_t
 </div><div class="memdoc">
 
 <p></p>
-<p>This overload only participates in the overload resolution if the typedef KeyEqual::is_transparent exists. If so, K must be hashable and comparable to Key. </p>
+<p>This overload only participates in the overload resolution if the typedef <code>KeyEqual::is_transparent</code> exists. If so, <code>K</code> must be hashable and comparable to <code>Key</code>. </p>
 
 </div>
 </div>
@@ -2089,8 +2090,8 @@ template&lt;class K , class KE  = KeyEqual, typename std::enable_if&lt; has_is_t
 </div><div class="memdoc">
 
 <p></p>
-<p>This overload only participates in the overload resolution if the typedef KeyEqual::is_transparent exists. If so, K must be hashable and comparable to Key.</p>
-<p>Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same as <a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key). Usefull to speed-up the lookup if you already have the hash. </p>
+<p>This overload only participates in the overload resolution if the typedef <code>KeyEqual::is_transparent</code> exists. If so, <code>K</code> must be hashable and comparable to <code>Key</code>.</p>
+<p>Use the hash value <code>precalculated_hash</code> instead of hashing the key. The hash value should be the same as <code><a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key)</code>, otherwise the behaviour is undefined. Useful to speed-up the lookup if you already have the hash. </p>
 
 </div>
 </div>
@@ -2251,7 +2252,7 @@ template&lt;class Key , class T , class Hash  = std::hash&lt;Key&gt;, class KeyE
   </tr>
 </table>
 </div><div class="memdoc">
-<p>Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same as <a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key). Usefull to speed-up the lookup to the value if you already have the hash. </p>
+<p>Use the hash value <code>precalculated_hash</code> instead of hashing the key. The hash value should be the same as <code><a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key)</code>, otherwise the behaviour is undefined. Useful to speed-up the lookup if you already have the hash. </p>
 
 </div>
 </div>
@@ -2282,7 +2283,7 @@ template&lt;class K , class KE  = KeyEqual, typename std::enable_if&lt; has_is_t
   </tr>
 </table>
 </div><div class="memdoc">
-<p>This overload only participates in the overload resolution if the typedef KeyEqual::is_transparent exists. If so, K must be hashable and comparable to Key. </p>
+<p>This overload only participates in the overload resolution if the typedef <code>KeyEqual::is_transparent</code> exists. If so, <code>K</code> must be hashable and comparable to <code>Key</code>. </p>
 
 </div>
 </div>
@@ -2325,8 +2326,8 @@ template&lt;class K , class KE  = KeyEqual, typename std::enable_if&lt; has_is_t
 </div><div class="memdoc">
 
 <p></p>
-<p>This overload only participates in the overload resolution if the typedef KeyEqual::is_transparent exists. If so, K must be hashable and comparable to Key.</p>
-<p>Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same as <a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key). Usefull to speed-up the lookup to the value if you already have the hash. </p>
+<p>This overload only participates in the overload resolution if the typedef <code>KeyEqual::is_transparent</code> exists. If so, <code>K</code> must be hashable and comparable to <code>Key</code>.</p>
+<p>Use the hash value <code>precalculated_hash</code> instead of hashing the key. The hash value should be the same as <code><a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key)</code>, otherwise the behaviour is undefined. Useful to speed-up the lookup if you already have the hash. </p>
 
 </div>
 </div>
@@ -2393,7 +2394,7 @@ template&lt;class Key , class T , class Hash  = std::hash&lt;Key&gt;, class KeyE
   </tr>
 </table>
 </div><div class="memdoc">
-<p>Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same as <a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key). Usefull to speed-up the lookup if you already have the hash. </p>
+<p>Use the hash value <code>precalculated_hash</code> instead of hashing the key. The hash value should be the same as <code><a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key)</code>, otherwise the behaviour is undefined. Useful to speed-up the lookup if you already have the hash. </p>
 
 </div>
 </div>
@@ -2462,7 +2463,7 @@ template&lt;class Key , class T , class Hash  = std::hash&lt;Key&gt;, class KeyE
 </div><div class="memdoc">
 
 <p></p>
-<p>Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same as <a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key). Usefull to speed-up the lookup if you already have the hash. </p>
+<p>Use the hash value <code>precalculated_hash</code> instead of hashing the key. The hash value should be the same as <code><a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key)</code>, otherwise the behaviour is undefined. Useful to speed-up the lookup if you already have the hash. </p>
 
 </div>
 </div>
@@ -2493,7 +2494,7 @@ template&lt;class K , class KE  = KeyEqual, typename std::enable_if&lt; has_is_t
   </tr>
 </table>
 </div><div class="memdoc">
-<p>This overload only participates in the overload resolution if the typedef KeyEqual::is_transparent exists. If so, K must be hashable and comparable to Key. </p>
+<p>This overload only participates in the overload resolution if the typedef <code>KeyEqual::is_transparent</code> exists. If so, <code>K</code> must be hashable and comparable to <code>Key</code>. </p>
 
 </div>
 </div>
@@ -2536,8 +2537,8 @@ template&lt;class K , class KE  = KeyEqual, typename std::enable_if&lt; has_is_t
 </div><div class="memdoc">
 
 <p></p>
-<p>This overload only participates in the overload resolution if the typedef KeyEqual::is_transparent exists. If so, K must be hashable and comparable to Key.</p>
-<p>Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same as <a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key). Usefull to speed-up the lookup if you already have the hash. </p>
+<p>This overload only participates in the overload resolution if the typedef <code>KeyEqual::is_transparent</code> exists. If so, <code>K</code> must be hashable and comparable to <code>Key</code>.</p>
+<p>Use the hash value <code>precalculated_hash</code> instead of hashing the key. The hash value should be the same as <code><a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key)</code>, otherwise the behaviour is undefined. Useful to speed-up the lookup if you already have the hash. </p>
 
 </div>
 </div>
@@ -2570,7 +2571,7 @@ template&lt;class K , class KE  = KeyEqual, typename std::enable_if&lt; has_is_t
 </div><div class="memdoc">
 
 <p></p>
-<p>This overload only participates in the overload resolution if the typedef KeyEqual::is_transparent exists. If so, K must be hashable and comparable to Key. </p>
+<p>This overload only participates in the overload resolution if the typedef <code>KeyEqual::is_transparent</code> exists. If so, <code>K</code> must be hashable and comparable to <code>Key</code>. </p>
 
 </div>
 </div>
@@ -2613,8 +2614,8 @@ template&lt;class K , class KE  = KeyEqual, typename std::enable_if&lt; has_is_t
 </div><div class="memdoc">
 
 <p></p>
-<p>This overload only participates in the overload resolution if the typedef KeyEqual::is_transparent exists. If so, K must be hashable and comparable to Key.</p>
-<p>Use the hash value 'precalculated_hash' instead of hashing the key. The hash value should be the same as <a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key). Usefull to speed-up the lookup if you already have the hash. </p>
+<p>This overload only participates in the overload resolution if the typedef <code>KeyEqual::is_transparent</code> exists. If so, <code>K</code> must be hashable and comparable to <code>Key</code>.</p>
+<p>Use the hash value <code>precalculated_hash</code> instead of hashing the key. The hash value should be the same as <code><a class="el" href="classtsl_1_1sparse__map.html#a49e4c0905925ea1631085ccb96eaba16">hash_function()</a>(key)</code>, otherwise the behaviour is undefined. Useful to speed-up the lookup if you already have the hash. </p>
 
 </div>
 </div>
@@ -3302,7 +3303,7 @@ template&lt;class Key , class T , class Hash  = std::hash&lt;Key&gt;, class KeyE
   </tr>
 </table>
 </div><div class="memdoc">
-<p>Convert a const_iterator to an iterator. </p>
+<p>Convert a <code>const_iterator</code> to an <code>iterator</code>. </p>
 
 </div>
 </div>
