@@ -769,6 +769,72 @@ BOOST_AUTO_TEST_CASE(test_swap) {
 /**
  * other
  */
+BOOST_AUTO_TEST_CASE(test_operations_with_all_buckets_marked_as_deleted_or_with_a_value) {
+    // Test find/erase/insert operations on a map which we craft to have all its buckets marked as 
+    // deleted or containing a value to be sure that everything works well in this edge case.
+    // Intrusive test (it's tightly coupled with the implementation of the map).
+    struct identity_hash {
+        std::size_t operator()(unsigned int value) const {
+            return std::size_t(value);
+        }
+    };
+    
+    tsl::sparse_map<unsigned int, unsigned int, identity_hash> map;
+    map.max_load_factor(0.95f);
+    map.rehash(64);
+    
+    BOOST_CHECK_EQUAL(map.bucket_count(), 64);
+    BOOST_CHECK_EQUAL(map.max_load_factor(), 0.95f);
+    
+    for(unsigned int i = 0; i < 60; i++) {
+        BOOST_CHECK(map.insert({i, i}).second);
+    }
+    
+    for(unsigned int i = 0; i < 10; i++) {
+        BOOST_CHECK_EQUAL(map.erase(i), 1);
+    }
+    
+    for(unsigned int i = 60; i < 64; i++) {
+        BOOST_CHECK(map.insert({i, i}).second);
+    }
+    
+    
+    BOOST_CHECK_EQUAL(map.size(), 54);
+    BOOST_CHECK_EQUAL(map.bucket_count(), 64);
+    
+    /**
+     * Map full of buckets marked as deleted or with a value. Check that find, erase and insert operations work well.
+     */
+    
+    // Find inexisting values.
+    for(unsigned int i = 0; i < 10; i++) {
+        BOOST_CHECK(map.find(i) == map.end());
+    }
+    
+    // Erase inexisting values.
+    for(unsigned int i = 0; i < 10; i++) {
+        BOOST_CHECK_EQUAL(map.erase(i), 0);
+    }
+    BOOST_CHECK_EQUAL(map.size(), 54);
+    
+    // Try to insert existing values.
+    for(unsigned int i = 10; i < 64; i++) {
+        BOOST_CHECK(!map.insert({i, i}).second);
+    }
+    
+    // Insert new values that won't cause a rehash.
+    for(unsigned int i = 0; i < 10 - 4; i++) {
+        BOOST_CHECK(map.insert({i, i}).second);
+        BOOST_CHECK_EQUAL(map.bucket_count(), 64);
+    }
+    
+    // Insert new values, first one will cause a rehash.
+    for(unsigned int i = 10 - 4; i < 10; i++) {
+        BOOST_CHECK(map.insert({i, i}).second);
+        BOOST_CHECK_EQUAL(map.bucket_count(), 128);
+    }
+}
+
 BOOST_AUTO_TEST_CASE(test_heterogeneous_lookups) {
     struct hash_ptr {
         std::size_t operator()(const std::unique_ptr<int>& p) const {

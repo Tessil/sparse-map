@@ -1638,7 +1638,7 @@ private:
                     return 1;
                 }
             }
-            else if(!m_sparse_buckets[sparse_ibucket].has_deleted_value(index_in_sparse_bucket)) {
+            else if(!m_sparse_buckets[sparse_ibucket].has_deleted_value(index_in_sparse_bucket) || probe >= m_bucket_count) {
                 return 0;
             }
             
@@ -1669,7 +1669,7 @@ private:
                     return const_iterator(m_sparse_buckets.cbegin() + sparse_ibucket, value_it);
                 }
             }
-            else if(!m_sparse_buckets[sparse_ibucket].has_deleted_value(index_in_sparse_bucket)) {
+            else if(!m_sparse_buckets[sparse_ibucket].has_deleted_value(index_in_sparse_bucket) || probe >= m_bucket_count) {
                 return cend();
             }
             
