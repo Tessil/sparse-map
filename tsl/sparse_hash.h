@@ -1471,7 +1471,7 @@ public:
     }
     
     void max_load_factor(float ml) {
-        m_max_load_factor = std::max(0.05f, std::min(ml, 0.95f));
+        m_max_load_factor = std::max(0.1f, std::min(ml, 0.8f));
         m_load_threshold = size_type(float(bucket_count())*m_max_load_factor);
     }
     

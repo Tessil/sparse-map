@@ -780,26 +780,26 @@ BOOST_AUTO_TEST_CASE(test_operations_with_all_buckets_marked_as_deleted_or_with_
     };
     
     tsl::sparse_map<unsigned int, unsigned int, identity_hash> map;
-    map.max_load_factor(0.95f);
+    map.max_load_factor(0.8f);
     map.rehash(64);
     
     BOOST_CHECK_EQUAL(map.bucket_count(), 64);
-    BOOST_CHECK_EQUAL(map.max_load_factor(), 0.95f);
+    BOOST_CHECK_EQUAL(map.max_load_factor(), 0.8f);
     
-    for(unsigned int i = 0; i < 60; i++) {
+    for(unsigned int i = 0; i < 51; i++) {
         BOOST_CHECK(map.insert({i, i}).second);
     }
     
-    for(unsigned int i = 0; i < 10; i++) {
+    for(unsigned int i = 0; i < 14; i++) {
         BOOST_CHECK_EQUAL(map.erase(i), 1);
     }
     
-    for(unsigned int i = 60; i < 64; i++) {
+    for(unsigned int i = 51; i < 64; i++) {
         BOOST_CHECK(map.insert({i, i}).second);
     }
     
     
-    BOOST_CHECK_EQUAL(map.size(), 54);
+    BOOST_CHECK_EQUAL(map.size(), 50);
     BOOST_CHECK_EQUAL(map.bucket_count(), 64);
     
     /**
@@ -807,32 +807,30 @@ BOOST_AUTO_TEST_CASE(test_operations_with_all_buckets_marked_as_deleted_or_with_
      */
     
     // Find inexisting values.
-    for(unsigned int i = 0; i < 10; i++) {
+    for(unsigned int i = 0; i < 14; i++) {
         BOOST_CHECK(map.find(i) == map.end());
     }
     
     // Erase inexisting values.
-    for(unsigned int i = 0; i < 10; i++) {
+    for(unsigned int i = 0; i < 14; i++) {
         BOOST_CHECK_EQUAL(map.erase(i), 0);
     }
-    BOOST_CHECK_EQUAL(map.size(), 54);
+    BOOST_CHECK_EQUAL(map.size(), 50);
+    BOOST_CHECK_EQUAL(map.bucket_count(), 64);
     
     // Try to insert existing values.
-    for(unsigned int i = 10; i < 64; i++) {
+    for(unsigned int i = 14; i < 64; i++) {
         BOOST_CHECK(!map.insert({i, i}).second);
     }
+    BOOST_CHECK_EQUAL(map.size(), 50);
+    BOOST_CHECK_EQUAL(map.bucket_count(), 64);
     
-    // Insert new values that won't cause a rehash.
-    for(unsigned int i = 0; i < 10 - 4; i++) {
+    // Insert new values
+    for(unsigned int i = 0; i < 14; i++) {
         BOOST_CHECK(map.insert({i, i}).second);
-        BOOST_CHECK_EQUAL(map.bucket_count(), 64);
     }
-    
-    // Insert new values, first one will cause a rehash.
-    for(unsigned int i = 10 - 4; i < 10; i++) {
-        BOOST_CHECK(map.insert({i, i}).second);
-        BOOST_CHECK_EQUAL(map.bucket_count(), 128);
-    }
+    BOOST_CHECK_EQUAL(map.size(), 64);
+    BOOST_CHECK_EQUAL(map.bucket_count(), 128);
 }
 
 BOOST_AUTO_TEST_CASE(test_heterogeneous_lookups) {
