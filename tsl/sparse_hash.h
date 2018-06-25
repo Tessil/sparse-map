@@ -976,7 +976,8 @@ public:
                                         GrowthPolicy(bucket_count == 0?++bucket_count:bucket_count),
                                         m_sparse_buckets(alloc), 
                                         m_bucket_count(bucket_count),
-                                        m_nb_elements(0)
+                                        m_nb_elements(0),
+                                        m_nb_deleted_buckets(0)
     {
         if(m_bucket_count > max_bucket_count()) {
             throw std::length_error("The map exceeds its maxmimum size.");
@@ -1013,7 +1014,9 @@ public:
                     m_sparse_buckets(std::allocator_traits<Allocator>::select_on_container_copy_construction(other)),
                     m_bucket_count(other.m_bucket_count),
                     m_nb_elements(other.m_nb_elements),
-                    m_load_threshold(other.m_load_threshold),
+                    m_nb_deleted_buckets(other.m_nb_deleted_buckets),
+                    m_load_threshold_rehash(other.m_load_threshold_rehash),
+                    m_load_threshold_clear_deleted(other.m_load_threshold_clear_deleted),
                     m_max_load_factor(other.m_max_load_factor)
     {
         m_sparse_buckets.reserve(other.m_sparse_buckets.size());
@@ -1035,7 +1038,9 @@ public:
                                             m_sparse_buckets(std::move(other.m_sparse_buckets)),
                                             m_bucket_count(other.m_bucket_count),
                                             m_nb_elements(other.m_nb_elements),
-                                            m_load_threshold(other.m_load_threshold),
+                                            m_nb_deleted_buckets(other.m_nb_deleted_buckets),
+                                            m_load_threshold_rehash(other.m_load_threshold_rehash),
+                                            m_load_threshold_clear_deleted(other.m_load_threshold_clear_deleted),
                                             m_max_load_factor(other.m_max_load_factor)
     {
         other.clear();
@@ -1074,7 +1079,9 @@ public:
             
             m_bucket_count = other.m_bucket_count;
             m_nb_elements = other.m_nb_elements;
-            m_load_threshold = other.m_load_threshold;
+            m_nb_deleted_buckets = other.m_nb_deleted_buckets;
+            m_load_threshold_rehash = other.m_load_threshold_rehash;
+            m_load_threshold_clear_deleted = other.m_load_threshold_clear_deleted;
             m_max_load_factor = other.m_max_load_factor;
         }
         
@@ -1105,7 +1112,9 @@ public:
         static_cast<GrowthPolicy&>(*this) = std::move(static_cast<GrowthPolicy&>(other));
         m_bucket_count = other.m_bucket_count;
         m_nb_elements = other.m_nb_elements;
-        m_load_threshold = other.m_load_threshold;
+        m_nb_deleted_buckets = other.m_nb_deleted_buckets;
+        m_load_threshold_rehash = other.m_load_threshold_rehash;
+        m_load_threshold_clear_deleted = other.m_load_threshold_clear_deleted;
         m_max_load_factor = other.m_max_load_factor;
         
         other.clear();
@@ -1180,6 +1189,7 @@ public:
         }
         
         m_nb_elements = 0;
+        m_nb_deleted_buckets = 0;
     }
     
     
@@ -1204,8 +1214,8 @@ public:
                            typename std::iterator_traits<InputIt>::iterator_category>::value) 
         {
             const auto nb_elements_insert = std::distance(first, last);
-            const size_type nb_free_buckets = m_load_threshold - size();
-            tsl_assert(m_load_threshold >= size());
+            const size_type nb_free_buckets = m_load_threshold_rehash - size();
+            tsl_assert(m_load_threshold_rehash >= size());
             
             if(nb_elements_insert > 0 && nb_free_buckets < size_type(nb_elements_insert)) {
                 reserve(size() + size_type(nb_elements_insert));
@@ -1278,6 +1288,7 @@ public:
         tsl_assert(pos != end() && m_nb_elements > 0);
         auto it_sparse_array_next = pos.m_sparse_buckets_it->erase(*this, pos.m_sparse_array_it);
         m_nb_elements--;
+        m_nb_deleted_buckets++;
 
         if(it_sparse_array_next == pos.m_sparse_buckets_it->end()) {
             auto it_sparse_buckets_next = pos.m_sparse_buckets_it;
@@ -1306,7 +1317,7 @@ public:
             return mutable_iterator(first);
         }
         
-        //TODO optimize
+        // TODO Optimize, could avoid the call to std::distance.
         const size_type nb_elements_to_erase = static_cast<size_type>(std::distance(first, last));
         auto to_delete = mutable_iterator(first);
         for(size_type i = 0; i < nb_elements_to_erase; i++) {
@@ -1345,7 +1356,9 @@ public:
         swap(m_sparse_buckets, other.m_sparse_buckets);
         swap(m_bucket_count, other.m_bucket_count);
         swap(m_nb_elements, other.m_nb_elements);
-        swap(m_load_threshold, other.m_load_threshold);
+        swap(m_nb_deleted_buckets, other.m_nb_deleted_buckets);
+        swap(m_load_threshold_rehash, other.m_load_threshold_rehash);
+        swap(m_load_threshold_clear_deleted, other.m_load_threshold_clear_deleted);
         swap(m_max_load_factor, other.m_max_load_factor);
     }
     
@@ -1472,7 +1485,11 @@ public:
     
     void max_load_factor(float ml) {
         m_max_load_factor = std::max(0.1f, std::min(ml, 0.8f));
-        m_load_threshold = size_type(float(bucket_count())*m_max_load_factor);
+        m_load_threshold_rehash = size_type(float(bucket_count())*m_max_load_factor);
+        
+        const float max_load_factor_with_deleted_buckets = m_max_load_factor + 0.5f*(1.0f - m_max_load_factor);
+        tsl_assert(max_load_factor_with_deleted_buckets > 0.0f && max_load_factor_with_deleted_buckets <= 1.0f);
+        m_load_threshold_clear_deleted = size_type(float(bucket_count())*max_load_factor_with_deleted_buckets);
     }
     
     void rehash(size_type count) {
@@ -1551,8 +1568,11 @@ private:
     
     template<class K, class... Args>
     std::pair<iterator, bool> insert_impl(const K& key, Args&&... value_type_args) {
-        if(size() >= m_load_threshold) {
+        if(size() >= m_load_threshold_rehash) {
             rehash_impl(GrowthPolicy::next_bucket_count());
+        }
+        else if(size() + m_nb_deleted_buckets >= m_load_threshold_clear_deleted) {
+            clear_deleted_buckets();
         }
         
         /**
@@ -1592,8 +1612,11 @@ private:
                 }
             }
             else if(found_first_deleted_bucket) {
-                return insert_in_bucket(sparse_ibucket_first_deleted, index_in_sparse_bucket_first_deleted, 
-                                        std::forward<Args>(value_type_args)...);
+                auto it = insert_in_bucket(sparse_ibucket_first_deleted, index_in_sparse_bucket_first_deleted, 
+                                           std::forward<Args>(value_type_args)...);
+                m_nb_deleted_buckets--;
+                
+                return it;
             }
             else {
                 return insert_in_bucket(sparse_ibucket, index_in_sparse_bucket, 
@@ -1635,6 +1658,8 @@ private:
                 if(compare_keys(key, KeySelect()(*value_it))) {
                     m_sparse_buckets[sparse_ibucket].erase(*this, value_it, index_in_sparse_bucket);
                     m_nb_elements--;
+                    m_nb_deleted_buckets++;
+                    
                     return 1;
                 }
             }
@@ -1678,14 +1703,15 @@ private:
         }
     }
     
+    void clear_deleted_buckets() {
+        // TODO could be optimized, we could do it in-place instead of allocating a new bucket array.
+        rehash_impl(m_bucket_count);
+        tsl_assert(m_nb_deleted_buckets == 0);
+    }
 
     template<tsl::sh::exception_safety U = ExceptionSafety, 
              typename std::enable_if<U == tsl::sh::exception_safety::basic>::type* = nullptr>
     void rehash_impl(size_type count) {
-        if(count == m_bucket_count) {
-            return;
-        }
-        
         sparse_hash new_table(count, static_cast<Hash&>(*this), static_cast<KeyEqual&>(*this), 
                               static_cast<Allocator&>(*this), m_max_load_factor);
             
@@ -1709,10 +1735,6 @@ private:
     template<tsl::sh::exception_safety U = ExceptionSafety, 
              typename std::enable_if<U == tsl::sh::exception_safety::strong>::type* = nullptr>
     void rehash_impl(size_type count) {
-        if(count == m_bucket_count) {
-            return;
-        }
-        
         sparse_hash new_table(count, static_cast<Hash&>(*this), static_cast<KeyEqual&>(*this), 
                               static_cast<Allocator&>(*this), m_max_load_factor);
             
@@ -1763,8 +1785,17 @@ private:
     sparse_buckets_container m_sparse_buckets;
     size_type m_bucket_count;
     size_type m_nb_elements;
+    size_type m_nb_deleted_buckets;
     
-    size_type m_load_threshold;
+    /**
+     * Maximum that m_nb_elements can reach before a rehash occurs automatically to grow the hash table.
+     */
+    size_type m_load_threshold_rehash;
+    
+    /**
+     * Maximum that m_nb_elements + m_nb_deleted_buckets can reach before cleaning up the buckets marked as deleted.
+     */
+    size_type m_load_threshold_clear_deleted;
     float m_max_load_factor;
 };
 
