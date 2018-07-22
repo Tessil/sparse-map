@@ -338,6 +338,11 @@ public:
     {
     }
     
+    explicit sparse_array(bool last_bucket) noexcept: m_values(nullptr), m_bitmap_vals(0), m_bitmap_deleted_vals(0), 
+                                                      m_nb_elements(0), m_capacity(0), m_last_array(last_bucket)
+    {
+    }
+    
     sparse_array(const sparse_array& other, Allocator& alloc): 
                              m_values(nullptr), m_bitmap_vals(other.m_bitmap_vals), 
                              m_bitmap_deleted_vals(other.m_bitmap_deleted_vals), 
@@ -829,6 +834,9 @@ private:
                   std::is_copy_constructible<ValueType>::value, 
                   "Key, and T if present, must be nothrow move constructible and/or copy constructible.");
 
+    static_assert(noexcept(std::declval<GrowthPolicy>().bucket_for_hash(std::size_t(0))), "GrowthPolicy::bucket_for_hash must be noexcept.");
+    static_assert(noexcept(std::declval<GrowthPolicy>().clear()), "GrowthPolicy::clear must be noexcept.");
+    
 public:   
     template<bool IsConst>
     class sparse_iterator;
@@ -971,10 +979,12 @@ public:
                 const Hash& hash,
                 const KeyEqual& equal,
                 const Allocator& alloc,
-                float max_load_factor): Allocator(alloc), Hash(hash), KeyEqual(equal),
-                                        // We need a non-zero bucket_count
-                                        GrowthPolicy(bucket_count == 0?++bucket_count:bucket_count),
+                float max_load_factor): Allocator(alloc), 
+                                        Hash(hash), 
+                                        KeyEqual(equal),
+                                        GrowthPolicy(bucket_count),
                                         m_sparse_buckets(alloc), 
+                                        m_first_or_empty_sparse_bucket(static_empty_sparse_bucket_ptr()),
                                         m_bucket_count(bucket_count),
                                         m_nb_elements(0),
                                         m_nb_deleted_buckets(0)
@@ -983,21 +993,26 @@ public:
             throw std::length_error("The map exceeds its maxmimum size.");
         }
         
-        /*
-         * We can't use the `vector(size_type count, const Allocator& alloc)` constructor
-         * as it's only available in C++14 and we need to support C++11. We thus must resize after using
-         * the `vector(const Allocator& alloc)` constructor.
-         * 
-         * We can't use `vector(size_type count, const T& value, const Allocator& alloc)` as it requires the
-         * value T to be copyable.
-         */
-        const size_type nb_sparse_buckets = 
-                std::max(size_type(1), 
-                         sparse_array::sparse_ibucket(tsl::detail_sparse_hash::round_up_to_power_of_two(bucket_count)));
-                   
-        m_sparse_buckets.resize(nb_sparse_buckets);
-        m_sparse_buckets.back().set_as_last();
-        
+        if(m_bucket_count > 0) {
+            /*
+            * We can't use the `vector(size_type count, const Allocator& alloc)` constructor
+            * as it's only available in C++14 and we need to support C++11. We thus must resize after using
+            * the `vector(const Allocator& alloc)` constructor.
+            * 
+            * We can't use `vector(size_type count, const T& value, const Allocator& alloc)` as it requires the
+            * value T to be copyable.
+            */
+            const size_type nb_sparse_buckets = 
+                    std::max(size_type(1), 
+                             sparse_array::sparse_ibucket(tsl::detail_sparse_hash::round_up_to_power_of_two(bucket_count)));
+                    
+            m_sparse_buckets.resize(nb_sparse_buckets);
+            m_first_or_empty_sparse_bucket = m_sparse_buckets.data();
+            
+            tsl_assert(!m_sparse_buckets.empty());
+            m_sparse_buckets.back().set_as_last();
+        }
+            
         
         this->max_load_factor(max_load_factor);
     }
@@ -1019,11 +1034,8 @@ public:
                     m_load_threshold_clear_deleted(other.m_load_threshold_clear_deleted),
                     m_max_load_factor(other.m_max_load_factor)
     {
-        m_sparse_buckets.reserve(other.m_sparse_buckets.size());
-        for(const auto& bucket: other.m_sparse_buckets) {
-            m_sparse_buckets.emplace_back(bucket, static_cast<Allocator&>(*this));
-        }
-        tsl_assert(!m_sparse_buckets.empty() && m_sparse_buckets.back().last());
+        copy_buckets_from(other),
+        m_first_or_empty_sparse_bucket = m_sparse_buckets.data();
     }
     
     sparse_hash(sparse_hash&& other) noexcept(std::is_nothrow_move_constructible<Allocator>::value &&
@@ -1036,6 +1048,8 @@ public:
                                             KeyEqual(std::move(other)),
                                             GrowthPolicy(std::move(other)),
                                             m_sparse_buckets(std::move(other.m_sparse_buckets)),
+                                            m_first_or_empty_sparse_bucket(m_sparse_buckets.empty()?static_empty_sparse_bucket_ptr():
+                                                                                                    m_sparse_buckets.data()),
                                             m_bucket_count(other.m_bucket_count),
                                             m_nb_elements(other.m_nb_elements),
                                             m_nb_deleted_buckets(other.m_nb_deleted_buckets),
@@ -1043,7 +1057,14 @@ public:
                                             m_load_threshold_clear_deleted(other.m_load_threshold_clear_deleted),
                                             m_max_load_factor(other.m_max_load_factor)
     {
-        other.clear();
+        other.GrowthPolicy::clear();
+        other.m_sparse_buckets.clear();
+        other.m_first_or_empty_sparse_bucket = static_empty_sparse_bucket_ptr();
+        other.m_bucket_count = 0;
+        other.m_nb_elements = 0;
+        other.m_nb_deleted_buckets = 0;
+        other.m_load_threshold_rehash = 0;
+        other.m_load_threshold_clear_deleted = 0;
     }
     
     sparse_hash& operator=(const sparse_hash& other) {
@@ -1070,11 +1091,9 @@ public:
                 }
             }
             
-            m_sparse_buckets.reserve(other.m_sparse_buckets.size());
-            for(const auto& bucket: other.m_sparse_buckets) {
-                m_sparse_buckets.emplace_back(bucket, static_cast<Allocator&>(*this));
-            }
-            tsl_assert(!m_sparse_buckets.empty() && m_sparse_buckets.back().last());
+            copy_buckets_from(other);
+            m_first_or_empty_sparse_bucket = m_sparse_buckets.empty()?static_empty_sparse_bucket_ptr():
+                                                                      m_sparse_buckets.data();
             
             
             m_bucket_count = other.m_bucket_count;
@@ -1096,17 +1115,17 @@ public:
             m_sparse_buckets = std::move(other.m_sparse_buckets);
         }
         else if(static_cast<Allocator&>(*this) != static_cast<Allocator&>(other)) {
-            m_sparse_buckets.reserve(other.m_sparse_buckets.size());
-            for(auto&& bucket: other.m_sparse_buckets) {
-                m_sparse_buckets.emplace_back(std::move(bucket), static_cast<Allocator&>(*this));
-            }
-            tsl_assert(!m_sparse_buckets.empty() && m_sparse_buckets.back().last());
+            move_buckets_from(std::move(other));
         }
         else {
             static_cast<Allocator&>(*this) = std::move(static_cast<Allocator&>(other));
             m_sparse_buckets = std::move(other.m_sparse_buckets);
         }
 
+            
+        m_first_or_empty_sparse_bucket = m_sparse_buckets.empty()?static_empty_sparse_bucket_ptr():
+                                                                  m_sparse_buckets.data();
+        
         static_cast<Hash&>(*this) = std::move(static_cast<Hash&>(other));
         static_cast<KeyEqual&>(*this) = std::move(static_cast<KeyEqual&>(other));
         static_cast<GrowthPolicy&>(*this) = std::move(static_cast<GrowthPolicy&>(other));
@@ -1117,7 +1136,14 @@ public:
         m_load_threshold_clear_deleted = other.m_load_threshold_clear_deleted;
         m_max_load_factor = other.m_max_load_factor;
         
-        other.clear();
+        other.GrowthPolicy::clear();
+        other.m_sparse_buckets.clear();
+        other.m_first_or_empty_sparse_bucket = static_empty_sparse_bucket_ptr();
+        other.m_bucket_count = 0;
+        other.m_nb_elements = 0;
+        other.m_nb_deleted_buckets = 0;
+        other.m_load_threshold_rehash = 0;
+        other.m_load_threshold_clear_deleted = 0;
         
         return *this;
     }
@@ -1354,6 +1380,7 @@ public:
         swap(static_cast<KeyEqual&>(*this), static_cast<KeyEqual&>(other));
         swap(static_cast<GrowthPolicy&>(*this), static_cast<GrowthPolicy&>(other));
         swap(m_sparse_buckets, other.m_sparse_buckets);
+        swap(m_first_or_empty_sparse_bucket, other.m_first_or_empty_sparse_bucket);
         swap(m_bucket_count, other.m_bucket_count);
         swap(m_nb_elements, other.m_nb_elements);
         swap(m_nb_deleted_buckets, other.m_nb_deleted_buckets);
@@ -1475,7 +1502,10 @@ public:
      * Hash policy 
      */
     float load_factor() const {
-        tsl_assert(bucket_count() > 0);
+        if(bucket_count() == 0) {
+            return 0;
+        }
+        
         return float(m_nb_elements)/float(bucket_count());
     }
     
@@ -1535,7 +1565,11 @@ private:
     }
     
     size_type bucket_for_hash(std::size_t hash) const {
-        return GrowthPolicy::bucket_for_hash(hash);
+        const std::size_t bucket = GrowthPolicy::bucket_for_hash(hash);
+        tsl_assert(sparse_array::sparse_ibucket(bucket) < m_sparse_buckets.size() || 
+                   (bucket == 0 && m_sparse_buckets.empty()));
+        
+        return bucket;        
     }
     
     template<class U = GrowthPolicy, typename std::enable_if<is_power_of_two_policy<U>::value>::type* = nullptr>
@@ -1565,6 +1599,39 @@ private:
     }
     
     
+    // TODO encapsulate m_sparse_buckets to avoid the managing the allocator
+    void copy_buckets_from(const sparse_hash& other) {
+        m_sparse_buckets.reserve(other.m_sparse_buckets.size());
+        
+        try {
+            for(const auto& bucket: other.m_sparse_buckets) {
+                m_sparse_buckets.emplace_back(bucket, static_cast<Allocator&>(*this));
+            }
+        }
+        catch(...) {
+            clear();
+            throw;
+        }        
+        
+        tsl_assert(m_sparse_buckets.empty() || m_sparse_buckets.back().last());
+    }
+    
+    void move_buckets_from(sparse_hash&& other) {
+        m_sparse_buckets.reserve(other.m_sparse_buckets.size());
+        
+        try {
+            for(auto&& bucket: other.m_sparse_buckets) {
+                m_sparse_buckets.emplace_back(std::move(bucket), static_cast<Allocator&>(*this));
+            }
+        }
+        catch(...) {
+            clear();
+            throw;
+        }        
+        
+        tsl_assert(m_sparse_buckets.empty() || m_sparse_buckets.back().last());
+    }
+    
     
     template<class K, class... Args>
     std::pair<iterator, bool> insert_impl(const K& key, Args&&... value_type_args) {
@@ -1574,6 +1641,7 @@ private:
         else if(size() + m_nb_deleted_buckets >= m_load_threshold_clear_deleted) {
             clear_deleted_buckets();
         }
+        tsl_assert(!m_sparse_buckets.empty());
         
         /**
          * We must insert the value in the first empty or deleted bucket we find. If we first find a 
@@ -1653,17 +1721,17 @@ private:
             const std::size_t sparse_ibucket = sparse_array::sparse_ibucket(ibucket);
             const auto index_in_sparse_bucket = sparse_array::index_in_sparse_bucket(ibucket);
         
-            if(m_sparse_buckets[sparse_ibucket].has_value(index_in_sparse_bucket)) {
-                auto value_it = m_sparse_buckets[sparse_ibucket].value(index_in_sparse_bucket);
+            if((m_first_or_empty_sparse_bucket + sparse_ibucket)->has_value(index_in_sparse_bucket)) {
+                auto value_it = (m_first_or_empty_sparse_bucket + sparse_ibucket)->value(index_in_sparse_bucket);
                 if(compare_keys(key, KeySelect()(*value_it))) {
-                    m_sparse_buckets[sparse_ibucket].erase(*this, value_it, index_in_sparse_bucket);
+                    (m_first_or_empty_sparse_bucket + sparse_ibucket)->erase(*this, value_it, index_in_sparse_bucket);
                     m_nb_elements--;
                     m_nb_deleted_buckets++;
                     
                     return 1;
                 }
             }
-            else if(!m_sparse_buckets[sparse_ibucket].has_deleted_value(index_in_sparse_bucket) || probe >= m_bucket_count) {
+            else if(!(m_first_or_empty_sparse_bucket + sparse_ibucket)->has_deleted_value(index_in_sparse_bucket) || probe >= m_bucket_count) {
                 return 0;
             }
             
@@ -1688,13 +1756,13 @@ private:
             const std::size_t sparse_ibucket = sparse_array::sparse_ibucket(ibucket);
             const auto index_in_sparse_bucket = sparse_array::index_in_sparse_bucket(ibucket);
         
-            if(m_sparse_buckets[sparse_ibucket].has_value(index_in_sparse_bucket)) {
-                auto value_it = m_sparse_buckets[sparse_ibucket].value(index_in_sparse_bucket);
+            if((m_first_or_empty_sparse_bucket + sparse_ibucket)->has_value(index_in_sparse_bucket)) {
+                auto value_it = (m_first_or_empty_sparse_bucket + sparse_ibucket)->value(index_in_sparse_bucket);
                 if(compare_keys(key, KeySelect()(*value_it))) {
                     return const_iterator(m_sparse_buckets.cbegin() + sparse_ibucket, value_it);
                 }
             }
-            else if(!m_sparse_buckets[sparse_ibucket].has_deleted_value(index_in_sparse_bucket) || probe >= m_bucket_count) {
+            else if(!(m_first_or_empty_sparse_bucket + sparse_ibucket)->has_deleted_value(index_in_sparse_bucket) || probe >= m_bucket_count) {
                 return cend();
             }
             
@@ -1760,16 +1828,16 @@ private:
             std::size_t sparse_ibucket = sparse_array::sparse_ibucket(ibucket);
             auto index_in_sparse_bucket = sparse_array::index_in_sparse_bucket(ibucket);
         
-            if(!m_sparse_buckets[sparse_ibucket].has_value(index_in_sparse_bucket)) {
-                m_sparse_buckets[sparse_ibucket].set(*this, index_in_sparse_bucket, 
-                                                     std::forward<K>(key_value));
+            if(!(m_first_or_empty_sparse_bucket + sparse_ibucket)->has_value(index_in_sparse_bucket)) {
+                (m_first_or_empty_sparse_bucket + sparse_ibucket)->set(*this, index_in_sparse_bucket, 
+                                                                       std::forward<K>(key_value));
                 m_nb_elements++;
                 
                 return;
             }
             else {
                 tsl_assert(!compare_keys(key, 
-                                         KeySelect()(*m_sparse_buckets[sparse_ibucket].value(index_in_sparse_bucket))));
+                                         KeySelect()(*(m_first_or_empty_sparse_bucket + sparse_ibucket)->value(index_in_sparse_bucket))));
             }
             
             probe++;
@@ -1781,8 +1849,24 @@ public:
     static const size_type DEFAULT_INIT_BUCKETS_SIZE = sparse_array::DEFAULT_INIT_BUCKETS_SIZE;
     static constexpr float DEFAULT_MAX_LOAD_FACTOR = 0.5f;
     
+    /**
+     * Return an always valid pointer to an static empty bucket_entry with last_bucket() == true.
+     */            
+    sparse_array* static_empty_sparse_bucket_ptr() {
+        static sparse_array empty_sparse_bucket(true);
+        return &empty_sparse_bucket;
+    }
+    
 private:
     sparse_buckets_container m_sparse_buckets;
+    
+    /**
+     * Points to m_sparse_buckets.data() if !m_sparse_buckets.empty() otherwise points to 
+     * static_empty_sparse_bucket_ptr. This variable is useful to avoid the cost of checking  
+     * if m_sparse_buckets is empty when trying to find an element.
+     */
+    sparse_array* m_first_or_empty_sparse_bucket;
+    
     size_type m_bucket_count;
     size_type m_nb_elements;
     size_type m_nb_deleted_buckets;

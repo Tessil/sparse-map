@@ -101,7 +101,9 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_insert, HMap, test_types) {
     using key_t = typename HMap::key_type; using value_t = typename HMap:: mapped_type;
     
     const std::size_t nb_values = 1000;
-    HMap map;
+    HMap map(0);
+    BOOST_CHECK_EQUAL(map.bucket_count(), 0);
+    
     typename HMap::iterator it;
     bool inserted;
     
@@ -704,6 +706,50 @@ BOOST_AUTO_TEST_CASE(test_copy_constructor_operator) {
     BOOST_CHECK(map_copy == map_copy3);
 }
 
+BOOST_AUTO_TEST_CASE(test_use_after_move_constructor) {
+    using HMap = tsl::sparse_map<std::string, move_only_test>;
+    
+    const std::size_t nb_values = 100;
+    HMap map = utils::get_filled_hash_map<HMap>(nb_values);
+    HMap map_move(std::move(map));
+    
+    
+    BOOST_CHECK(map == (HMap()));
+    BOOST_CHECK_EQUAL(map.size(), 0);
+    BOOST_CHECK_EQUAL(map.bucket_count(), 0);
+    BOOST_CHECK_EQUAL(map.erase("a"), 0);
+    BOOST_CHECK(map.find("a") == map.end());
+    
+    for(std::size_t i = 0; i < nb_values; i++) {
+        map.insert({utils::get_key<std::string>(i), utils::get_value<move_only_test>(i)});
+    }
+    
+    BOOST_CHECK_EQUAL(map.size(), nb_values);
+    BOOST_CHECK(map == map_move);
+}
+
+BOOST_AUTO_TEST_CASE(test_use_after_move_operator) {
+    using HMap = tsl::sparse_map<std::string, move_only_test>;
+    
+    const std::size_t nb_values = 100;
+    HMap map = utils::get_filled_hash_map<HMap>(nb_values);
+    HMap map_move(0);
+    map_move = std::move(map);
+    
+    
+    BOOST_CHECK(map == (HMap()));
+    BOOST_CHECK_EQUAL(map.size(), 0);
+    BOOST_CHECK_EQUAL(map.bucket_count(), 0);
+    BOOST_CHECK_EQUAL(map.erase("a"), 0);
+    BOOST_CHECK(map.find("a") == map.end());
+    
+    for(std::size_t i = 0; i < nb_values; i++) {
+        map.insert({utils::get_key<std::string>(i), utils::get_value<move_only_test>(i)});
+    }
+    
+    BOOST_CHECK_EQUAL(map.size(), nb_values);
+    BOOST_CHECK(map == map_move);
+}
 
 
 /**
@@ -762,6 +808,12 @@ BOOST_AUTO_TEST_CASE(test_swap) {
     
     BOOST_CHECK(map == (tsl::sparse_map<std::int64_t, std::int64_t>{{4, 40}, {5, 50}}));
     BOOST_CHECK(map2 == (tsl::sparse_map<std::int64_t, std::int64_t>{{1, 10}, {8, 80}, {3, 30}}));
+    
+    map.insert({6, 60});
+    map2.insert({4, 40});
+    
+    BOOST_CHECK(map == (tsl::sparse_map<std::int64_t, std::int64_t>{{4, 40}, {5, 50}, {6, 60}}));
+    BOOST_CHECK(map2 == (tsl::sparse_map<std::int64_t, std::int64_t>{{1, 10}, {8, 80}, {3, 30}, {4, 40}}));
 }
 
 
@@ -924,6 +976,7 @@ BOOST_AUTO_TEST_CASE(test_heterogeneous_lookups) {
 BOOST_AUTO_TEST_CASE(test_empty_map) {
     tsl::sparse_map<std::string, int> map(0);
     
+    BOOST_CHECK_EQUAL(map.bucket_count(), 0);
     BOOST_CHECK_EQUAL(map.size(), 0);
     BOOST_CHECK(map.empty());
     
@@ -953,7 +1006,7 @@ BOOST_AUTO_TEST_CASE(test_empty_map) {
  * Test precalculated hash
  */
 BOOST_AUTO_TEST_CASE(test_precalculated_hash) {
-    tsl::sparse_map<int, int, std::hash<int>> map = {{1, -1}, {2, -2}, {3, -3}, {4, -4}, {5, -5}, {6, -6}};
+    tsl::sparse_map<int, int> map = {{1, -1}, {2, -2}, {3, -3}, {4, -4}, {5, -5}, {6, -6}};
     const tsl::sparse_map<int, int> map_const = map;
     
     /**
@@ -983,6 +1036,10 @@ BOOST_AUTO_TEST_CASE(test_precalculated_hash) {
     auto it_range = map.equal_range(3, map.hash_function()(3));
     BOOST_REQUIRE_EQUAL(std::distance(it_range.first, it_range.second), 1);
     BOOST_CHECK_EQUAL(it_range.first->second, -3);
+    
+    auto it_range_const = map_const.equal_range(3, map_const.hash_function()(3));
+    BOOST_REQUIRE_EQUAL(std::distance(it_range_const.first, it_range_const.second), 1);
+    BOOST_CHECK_EQUAL(it_range_const.first->second, -3);
     
     /**
      * erase
