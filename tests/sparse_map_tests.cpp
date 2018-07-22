@@ -733,7 +733,8 @@ BOOST_AUTO_TEST_CASE(test_use_after_move_operator) {
     
     const std::size_t nb_values = 100;
     HMap map = utils::get_filled_hash_map<HMap>(nb_values);
-    HMap map_move = std::move(map);
+    HMap map_move(0);
+    map_move = std::move(map);
     
     
     BOOST_CHECK(map == (HMap()));

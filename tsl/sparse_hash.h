@@ -1136,7 +1136,14 @@ public:
         m_load_threshold_clear_deleted = other.m_load_threshold_clear_deleted;
         m_max_load_factor = other.m_max_load_factor;
         
-        other.clear();
+        other.GrowthPolicy::clear();
+        other.m_sparse_buckets.clear();
+        other.m_first_or_empty_sparse_bucket = static_empty_sparse_bucket_ptr();
+        other.m_bucket_count = 0;
+        other.m_nb_elements = 0;
+        other.m_nb_deleted_buckets = 0;
+        other.m_load_threshold_rehash = 0;
+        other.m_load_threshold_clear_deleted = 0;
         
         return *this;
     }
