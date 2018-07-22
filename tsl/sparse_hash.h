@@ -1495,7 +1495,10 @@ public:
      * Hash policy 
      */
     float load_factor() const {
-        tsl_assert(bucket_count() > 0);
+        if(bucket_count() == 0) {
+            return 0;
+        }
+        
         return float(m_nb_elements)/float(bucket_count());
     }
     
@@ -1555,7 +1558,11 @@ private:
     }
     
     size_type bucket_for_hash(std::size_t hash) const {
-        return GrowthPolicy::bucket_for_hash(hash);
+        const std::size_t bucket = GrowthPolicy::bucket_for_hash(hash);
+        tsl_assert(sparse_array::sparse_ibucket(bucket) < m_sparse_buckets.size() || 
+                   (bucket == 0 && m_sparse_buckets.empty()));
+        
+        return bucket;        
     }
     
     template<class U = GrowthPolicy, typename std::enable_if<is_power_of_two_policy<U>::value>::type* = nullptr>
