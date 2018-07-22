@@ -44,7 +44,6 @@ $(function() {
   <div class="summary">
 <a href="#pub-methods">Public Member Functions</a> &#124;
 <a href="#pro-attribs">Protected Attributes</a> &#124;
-<a href="#pro-static-attribs">Static Protected Attributes</a> &#124;
 <a href="classtsl_1_1sh_1_1power__of__two__growth__policy-members.html">List of all members</a>  </div>
   <div class="headertitle">
 <div class="title">tsl::sh::power_of_two_growth_policy&lt; GrowthFactor &gt; Class Template Reference</div>  </div>
@@ -63,16 +62,13 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a4478cb4e171f0811c054fa720135d6bd"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae5f23353d59cdc9db51d001f2aea6bfa"><td class="memItemLeft" align="right" valign="top">std::size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classtsl_1_1sh_1_1power__of__two__growth__policy.html#ae5f23353d59cdc9db51d001f2aea6bfa">max_bucket_count</a> () const</td></tr>
 <tr class="separator:ae5f23353d59cdc9db51d001f2aea6bfa"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a0095e923d12298a7b8288edae5123fb1"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classtsl_1_1sh_1_1power__of__two__growth__policy.html#a0095e923d12298a7b8288edae5123fb1">clear</a> () noexcept</td></tr>
+<tr class="separator:a0095e923d12298a7b8288edae5123fb1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pro-attribs"></a>
 Protected Attributes</h2></td></tr>
 <tr class="memitem:a48c9f6f0d0899ccc4b56f11a491d1a62"><td class="memItemLeft" align="right" valign="top">std::size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classtsl_1_1sh_1_1power__of__two__growth__policy.html#a48c9f6f0d0899ccc4b56f11a491d1a62">m_mask</a></td></tr>
 <tr class="separator:a48c9f6f0d0899ccc4b56f11a491d1a62"><td class="memSeparator" colspan="2">&#160;</td></tr>
-</table><table class="memberdecls">
-<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pro-static-attribs"></a>
-Static Protected Attributes</h2></td></tr>
-<tr class="memitem:a724fecea082ddbfafc48d4de1431a329"><td class="memItemLeft" align="right" valign="top">static const std::size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classtsl_1_1sh_1_1power__of__two__growth__policy.html#a724fecea082ddbfafc48d4de1431a329">MIN_BUCKETS_SIZE</a> = 2</td></tr>
-<tr class="separator:a724fecea082ddbfafc48d4de1431a329"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><h3>template&lt;std::size_t GrowthFactor&gt;<br />
@@ -106,7 +102,8 @@ template&lt;std::size_t GrowthFactor&gt; </div>
   </tr>
 </table>
 </div><div class="memdoc">
-<p>Called on the hash table creation and on rehash. The number of buckets for the table is passed in parameter. This number is a minimum, the policy may update this value with a higher value if needed (but not lower). </p>
+<p>Called on the hash table creation and on rehash. The number of buckets for the table is passed in parameter. This number is a minimum, the policy may update this value with a higher value if needed (but not lower).</p>
+<p>If 0 is given, min_bucket_count_in_out must still be 0 after the policy creation and bucket_for_hash must always return 0 in this case. </p>
 
 </div>
 </div>
@@ -136,7 +133,35 @@ template&lt;std::size_t GrowthFactor&gt; </div>
   </tr>
 </table>
 </div><div class="memdoc">
-<p>Return the bucket [0, bucket_count()) to which the hash belongs. </p>
+<p>Return the bucket [0, bucket_count()) to which the hash belongs. If bucket_count() is 0, it must always return 0. </p>
+
+</div>
+</div>
+<a id="a0095e923d12298a7b8288edae5123fb1"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0095e923d12298a7b8288edae5123fb1">&#9670;&nbsp;</a></span>clear()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;std::size_t GrowthFactor&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void <a class="el" href="classtsl_1_1sh_1_1power__of__two__growth__policy.html">tsl::sh::power_of_two_growth_policy</a>&lt; GrowthFactor &gt;::clear </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">noexcept</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<p>Reset the growth policy as if it was created with a bucket count of 0. After a clear, the policy must always return 0 when bucket_for_hash is called. </p>
 
 </div>
 </div>
@@ -192,7 +217,7 @@ template&lt;std::size_t GrowthFactor&gt; </div>
   </tr>
 </table>
 </div><div class="memdoc">
-<p>Return the bucket count to use when the bucket array grows on rehash. </p>
+<p>Return the number of buckets that should be used on next growth. </p>
 
 </div>
 </div>
@@ -215,30 +240,6 @@ template&lt;std::size_t GrowthFactor&gt; </div>
   </td>
   <td class="mlabels-right">
 <span class="mlabels"><span class="mlabel">protected</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-
-</div>
-</div>
-<a id="a724fecea082ddbfafc48d4de1431a329"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a724fecea082ddbfafc48d4de1431a329">&#9670;&nbsp;</a></span>MIN_BUCKETS_SIZE</h2>
-
-<div class="memitem">
-<div class="memproto">
-<div class="memtemplate">
-template&lt;std::size_t GrowthFactor&gt; </div>
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">const std::size_t <a class="el" href="classtsl_1_1sh_1_1power__of__two__growth__policy.html">tsl::sh::power_of_two_growth_policy</a>&lt; GrowthFactor &gt;::MIN_BUCKETS_SIZE = 2</td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">static</span><span class="mlabel">protected</span></span>  </td>
   </tr>
 </table>
 </div><div class="memdoc">

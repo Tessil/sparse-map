@@ -232,6 +232,8 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:aa57360fd26ef7afb084bc9f1c832b4d8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3e1d9ece194073d4b3dd919a9a57818a"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classtsl_1_1detail__sparse__hash_1_1sparse__hash.html#a7bdadb7941c03e0aa1df91787a3306f2">iterator</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classtsl_1_1detail__sparse__hash_1_1sparse__hash.html#a3e1d9ece194073d4b3dd919a9a57818a">mutable_iterator</a> (<a class="el" href="classtsl_1_1detail__sparse__hash_1_1sparse__hash.html#aee8a233535786e0a96080bb9b0696f07">const_iterator</a> pos)</td></tr>
 <tr class="separator:a3e1d9ece194073d4b3dd919a9a57818a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a585ac70a49f3a54b1ee85fe65034593a"><td class="memItemLeft" align="right" valign="top">sparse_array *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classtsl_1_1detail__sparse__hash_1_1sparse__hash.html#a585ac70a49f3a54b1ee85fe65034593a">static_empty_sparse_bucket_ptr</a> ()</td></tr>
+<tr class="separator:a585ac70a49f3a54b1ee85fe65034593a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-static-attribs"></a>
 Static Public Attributes</h2></td></tr>
@@ -2176,6 +2178,34 @@ template&lt;class ValueType, class KeySelect, class ValueSelect, class Hash, cla
   </tr>
 </table>
 </div><div class="memdoc">
+
+</div>
+</div>
+<a id="a585ac70a49f3a54b1ee85fe65034593a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a585ac70a49f3a54b1ee85fe65034593a">&#9670;&nbsp;</a></span>static_empty_sparse_bucket_ptr()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;class ValueType, class KeySelect, class ValueSelect, class Hash, class KeyEqual, class Allocator, class GrowthPolicy, tsl::sh::exception_safety ExceptionSafety, tsl::sh::sparsity Sparsity, tsl::sh::probing Probing&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">sparse_array* <a class="el" href="classtsl_1_1detail__sparse__hash_1_1sparse__hash.html">tsl::detail_sparse_hash::sparse_hash</a>&lt; ValueType, KeySelect, ValueSelect, Hash, KeyEqual, Allocator, GrowthPolicy, ExceptionSafety, Sparsity, Probing &gt;::static_empty_sparse_bucket_ptr </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<p>Return an always valid pointer to an static empty bucket_entry with last_bucket() == true. </p>
 
 </div>
 </div>
