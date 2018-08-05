@@ -10,7 +10,7 @@ A **benchmark** of `tsl::sparse_map` against other hash maps may be found [here]
 
 ### Key features
 
-- Header-only library, just include the project to your include path and you are ready to go.
+- Header-only library, just add the [include](include/) directory to your include path and you are ready to go. If you use CMake, you can also use the `tsl::sparse_map` exported target from the [CMakeLists.txt](CMakeLists.txt).
 - Memory efficient while keeping good lookup speed, see the [benchmark](https://tessil.github.io/2016/08/29/benchmark-hopscotch-map.html) for some numbers.
 - Support for heterogeneous lookups allowing to use `find` with a type different than `Key` (e.g. if you have a map that uses `std::unique_ptr<foo>` as key, you could use a `foo*` or a `std::uintptr_t` as key parameter to `find` without constructing a `std::unique_ptr<foo>`, see [example](#heterogeneous-lookups)).
 - No need to reserve any sentinel value from the keys.
@@ -90,7 +90,14 @@ struct custom_policy {
 
 ### Installation
 
-To use sparse-map, just add the project to your include path. It is a **header-only** library.
+To use sparse-map, just add the [include](include/) directory to your include path. It is a **header-only** library.
+
+If you use CMake, you can also use the `tsl::sparse_map` exported target from the [CMakeLists.txt](CMakeLists.txt) with `target_link_libraries`. 
+```cmake
+# Example where the sparse-map project is stored in a third-party directory
+add_subdirectory(third-party/sparse-map)
+target_link_libraries(your_target PRIVATE tsl::sparse_map)  
+```
 
 The code should work with any C++11 standard-compliant compiler and has been tested with GCC 4.8.4, Clang 3.5.0 and Visual Studio 2015.
 
@@ -98,12 +105,12 @@ To run the tests you will need the Boost Test library and CMake.
 
 ```bash
 git clone https://github.com/Tessil/sparse-map.git
-cd sparse-map
+cd sparse-map/tests
 mkdir build
 cd build
 cmake ..
-make
-./test_sparse_map
+cmake --build .
+./tsl_sparse_map_tests 
 ```
 
 ### Usage
