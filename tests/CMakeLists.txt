@@ -19,6 +19,6 @@ endif()
 find_package(Boost 1.54.0 REQUIRED COMPONENTS unit_test_framework)
 target_link_libraries(tsl_sparse_map_tests PRIVATE Boost::unit_test_framework)   
 
-# tsl::hopscotch_map
+# tsl::sparse_map
 add_subdirectory(../ ${CMAKE_CURRENT_BINARY_DIR}/tsl)
 target_link_libraries(tsl_sparse_map_tests PRIVATE tsl::sparse_map)  
