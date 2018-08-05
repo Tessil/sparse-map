@@ -145,12 +145,13 @@ int main() {
         std::cout << "{" << key_value.first << ", " << key_value.second << "}" << std::endl;
     }
     
+    
     if(map.find("a") != map.end()) {
         std::cout << "Found \"a\"." << std::endl;
     }
     
     const std::size_t precalculated_hash = std::hash<std::string>()("a");
-    // If we already know the hash beforehand, we can pass it in parameter to speed-up lookups.
+    // If we already know the hash beforehand, we can pass it as argument to speed-up the lookup.
     if(map.find("a", precalculated_hash) != map.end()) {
         std::cout << "Found \"a\" with hash " << precalculated_hash << "." << std::endl;
     }
