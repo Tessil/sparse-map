@@ -638,6 +638,21 @@ public:
         return m_ht.mutable_iterator(pos);
     }
     
+    template<class Serializer>
+    void serialize(Serializer& serializer) {
+        m_ht.serialize(serializer);
+    }
+    
+    template<class Deserializer>
+    static sparse_map deserialize(Deserializer& deserializer) {
+        sparse_map map(0);
+        map.m_ht.deserialize(deserializer);
+        
+        return map;
+    }
+    
+    
+    
     friend bool operator==(const sparse_map& lhs, const sparse_map& rhs) {
         if(lhs.size() != rhs.size()) {
             return false;

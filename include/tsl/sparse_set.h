@@ -502,6 +502,21 @@ public:
         return m_ht.mutable_iterator(pos);
     }
     
+    template<class Serializer>
+    void serialize(Serializer& serializer) {
+        m_ht.serialize(serializer);
+    }
+    
+    template<class Deserializer>
+    static sparse_set deserialize(Deserializer& deserializer) {
+        sparse_set set(0);
+        set.m_ht.deserialize(deserializer);
+        
+        return set;
+    }
+    
+    
+    
     friend bool operator==(const sparse_set& lhs, const sparse_set& rhs) {
         if(lhs.size() != rhs.size()) {
             return false;
