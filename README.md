@@ -12,7 +12,7 @@ A **benchmark** of `tsl::sparse_map` against other hash maps may be found [here]
 
 - Header-only library, just add the [include](include/) directory to your include path and you are ready to go. If you use CMake, you can also use the `tsl::sparse_map` exported target from the [CMakeLists.txt](CMakeLists.txt).
 - Memory efficient while keeping good lookup speed, see the [benchmark](https://tessil.github.io/2016/08/29/benchmark-hopscotch-map.html) for some numbers.
-- Support for heterogeneous lookups allowing to use `find` with a type different than `Key` (e.g. if you have a map that uses `std::unique_ptr<foo>` as key, you could use a `foo*` or a `std::uintptr_t` as key parameter to `find` without constructing a `std::unique_ptr<foo>`, see [example](#heterogeneous-lookups)).
+- Support for heterogeneous lookups allowing the usage of `find` with a type different than `Key` (e.g. if you have a map that uses `std::unique_ptr<foo>` as key, you could use a `foo*` or a `std::uintptr_t` as key parameter to `find` without constructing a `std::unique_ptr<foo>`, see [example](#heterogeneous-lookups)).
 - No need to reserve any sentinel value from the keys.
 - If the hash is known before a lookup, it is possible to pass it as parameter to speed-up the lookup (see `precalculated_hash` parameter in [API](https://tessil.github.io/sparse-map/classtsl_1_1sparse__map.html)).
 - Possibility to control the balance between insertion speed and memory usage with the `Sparsity` template parameter. A high sparsity means less memory but longer insertion times, and vice-versa for low sparsity. The default medium sparsity offers a good compromise (see [API](https://tessil.github.io/sparse-map/classtsl_1_1sparse__map.html#details) for details). For reference, with simple 64 bits integers as keys and values, a low sparsity offers ~15% faster insertions times but uses ~12% more memory. Nothing change regarding lookup speed.
@@ -34,7 +34,7 @@ for(auto it = map.begin(); it != map.end(); ++it) {
 }
 ```
 - Move-only types must have a nothrow move constructor.
-- No support for some buckets related methods (like bucket_size, bucket, ...).
+- No support for some buckets related methods (like `bucket_size`, `bucket`, ...).
 
 These differences also apply between `std::unordered_set` and `tsl::sparse_set`.
 
@@ -65,11 +65,10 @@ To implement your own policy, you have to implement the following interface.
 
 ```c++
 struct custom_policy {
-    // Called on the hash table creation and on rehash. The number of buckets for the table is passed in parameter.
-    // This number is a minimum, the policy may update this value with a higher value if needed (but not lower).
-    //
-    // If 0 is given, min_bucket_count_in_out must still be 0 after the policy creation and
-    // bucket_for_hash must always return 0 in this case.    
+    // Called on hash table construction and rehash, min_bucket_count_in_out is the minimum buckets
+    // that the hash table needs. The policy can change it to a higher number of buckets if needed 
+    // and the hash table will use this value as bucket count. If 0 bucket is asked, then the value
+    // must stay at 0.    
     explicit custom_policy(std::size_t& min_bucket_count_in_out);
     
     // Return the bucket [0, bucket_count()) to which the hash belongs. 
