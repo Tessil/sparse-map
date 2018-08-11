@@ -42,11 +42,11 @@
 #include "sparse_growth_policy.h"
 
 #ifdef __INTEL_COMPILER
-#include <immintrin.h> // For _popcnt32 and _popcnt64
+#    include <immintrin.h> // For _popcnt32 and _popcnt64
 #endif
 
 #ifdef _MSC_VER
-#include <intrin.h> // For __cpuid, __popcnt and __popcnt64
+#    include <intrin.h> // For __cpuid, __popcnt and __popcnt64
 #endif
 
 
