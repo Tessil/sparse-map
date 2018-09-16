@@ -42,23 +42,19 @@
 #include "sparse_growth_policy.h"
 
 #ifdef __INTEL_COMPILER
-#include <immintrin.h> // For _popcnt32 and _popcnt64
+#    include <immintrin.h> // For _popcnt32 and _popcnt64
 #endif
 
 #ifdef _MSC_VER
-#include <intrin.h> // For __cpuid, __popcnt and __popcnt64
+#    include <intrin.h> // For __cpuid, __popcnt and __popcnt64
 #endif
 
 
-
-#ifndef tsl_assert
-    #ifdef TSL_DEBUG
-    #define tsl_assert(expr) assert(expr)
-    #else
-    #define tsl_assert(expr) (static_cast<void>(0))
-    #endif
+#ifdef TSL_DEBUG
+#    define tsl_sh_assert(expr) assert(expr)
+#else
+#    define tsl_sh_assert(expr) (static_cast<void>(0))
 #endif
-
 
 
 namespace tsl {
@@ -348,7 +344,7 @@ public:
     {
         if(m_capacity > 0) {
             m_values = alloc.allocate(m_capacity);
-            tsl_assert(m_values != nullptr); // allocate should throw if there is a failure
+            tsl_sh_assert(m_values != nullptr); // allocate should throw if there is a failure
         }
     }
     
@@ -358,13 +354,13 @@ public:
                              m_nb_elements(0), m_capacity(other.m_capacity), 
                              m_last_array(other.m_last_array)
     {
-        tsl_assert(other.m_capacity >= other.m_nb_elements);
+        tsl_sh_assert(other.m_capacity >= other.m_nb_elements);
         if(m_capacity == 0) {
             return;
         }
         
         m_values = alloc.allocate(m_capacity);
-        tsl_assert(m_values != nullptr);  // allocate should throw if there is a failure
+        tsl_sh_assert(m_values != nullptr);  // allocate should throw if there is a failure
         try {
             for(size_type i = 0; i < other.m_nb_elements; i++) {
                 construct_value(alloc, m_values + i, other.m_values[i]);
@@ -395,13 +391,13 @@ public:
                                                  m_nb_elements(0), m_capacity(other.m_capacity), 
                                                  m_last_array(other.m_last_array)
     {
-        tsl_assert(other.m_capacity >= other.m_nb_elements);
+        tsl_sh_assert(other.m_capacity >= other.m_nb_elements);
         if(m_capacity == 0) {
             return;
         }
         
         m_values = alloc.allocate(m_capacity);
-        tsl_assert(m_values != nullptr);  // allocate should throw if there is a failure
+        tsl_sh_assert(m_values != nullptr);  // allocate should throw if there is a failure
         try {
             for(size_type i = 0; i < other.m_nb_elements; i++) {
                 construct_value(alloc, m_values + i, std::move(other.m_values[i]));
@@ -420,7 +416,7 @@ public:
     ~sparse_array() noexcept {
         // The code that manages the sparse_array must have called clear before destruction. 
         // See documentation of sparse_array for more details.
-        tsl_assert(m_capacity == 0 && m_nb_elements == 0 && m_values == nullptr);
+        tsl_sh_assert(m_capacity == 0 && m_nb_elements == 0 && m_values == nullptr);
     }
     
     iterator begin() noexcept { return m_values; }
@@ -457,22 +453,22 @@ public:
     }
     
     bool has_value(size_type index) const noexcept {
-        tsl_assert(index < BITMAP_NB_BITS);
+        tsl_sh_assert(index < BITMAP_NB_BITS);
         return (m_bitmap_vals & (bitmap_type(1) << index)) != 0;
     }
     
     bool has_deleted_value(size_type index) const noexcept {
-        tsl_assert(index < BITMAP_NB_BITS);
+        tsl_sh_assert(index < BITMAP_NB_BITS);
         return (m_bitmap_deleted_vals & (bitmap_type(1) << index)) != 0;
     }
     
     iterator value(size_type index) noexcept {
-        tsl_assert(has_value(index));
+        tsl_sh_assert(has_value(index));
         return m_values + index_to_offset(index);
     }
     
     const_iterator value(size_type index) const noexcept {
-        tsl_assert(has_value(index));
+        tsl_sh_assert(has_value(index));
         return m_values + index_to_offset(index);
     }
     
@@ -481,7 +477,7 @@ public:
      */
     template<typename... Args>
     iterator set(allocator_type& alloc, size_type index, Args&&... value_args) {
-        tsl_assert(!has_value(index));
+        tsl_sh_assert(!has_value(index));
         
         const size_type offset = index_to_offset(index);
         insert_at_offset(alloc, offset, std::forward<Args>(value_args)...);
@@ -491,8 +487,8 @@ public:
         
         m_nb_elements++;
         
-        tsl_assert(has_value(index));
-        tsl_assert(!has_deleted_value(index));
+        tsl_sh_assert(has_value(index));
+        tsl_sh_assert(!has_deleted_value(index));
         
         return m_values + offset;
     }
@@ -504,8 +500,8 @@ public:
     
     // Return the next value or end if no next value
     iterator erase(allocator_type& alloc, iterator position, size_type index) {
-        tsl_assert(has_value(index));
-        tsl_assert(!has_deleted_value(index));
+        tsl_sh_assert(has_value(index));
+        tsl_sh_assert(!has_deleted_value(index));
         
         const size_type offset = static_cast<size_type>(std::distance(begin(), position));
         erase_at_offset(alloc, offset);
@@ -515,8 +511,8 @@ public:
         
         m_nb_elements--;
         
-        tsl_assert(!has_value(index));
-        tsl_assert(has_deleted_value(index));
+        tsl_sh_assert(!has_value(index));
+        tsl_sh_assert(has_deleted_value(index));
         
         return m_values + offset;
     }
@@ -534,7 +530,7 @@ public:
     
     //TODO optimize
     size_type offset_to_index(size_type offset) const noexcept {
-        tsl_assert(offset < m_nb_elements);
+        tsl_sh_assert(offset < m_nb_elements);
         
         bitmap_type bitmap_vals = m_bitmap_vals;
         size_type index = 0;
@@ -590,7 +586,7 @@ private:
     }
     
     size_type index_to_offset(size_type index) const noexcept {
-        tsl_assert(index < BITMAP_NB_BITS);
+        tsl_sh_assert(index < BITMAP_NB_BITS);
         return popcount(m_bitmap_vals & ((bitmap_type(1) << index) - bitmap_type(1)));
     }
     
@@ -637,8 +633,8 @@ private:
     template<typename... Args, typename U = value_type, 
              typename std::enable_if<std::is_nothrow_move_constructible<U>::value>::type* = nullptr>
     void insert_at_offset_no_realloc(allocator_type& alloc, size_type offset, Args&&... value_args) {
-        tsl_assert(offset <= m_nb_elements);
-        tsl_assert(m_nb_elements < m_capacity);
+        tsl_sh_assert(offset <= m_nb_elements);
+        tsl_sh_assert(m_nb_elements < m_capacity);
         
         for(size_type i = m_nb_elements; i > offset; i--) {
             construct_value(alloc, m_values + i, std::move(m_values[i - 1]));
@@ -660,10 +656,10 @@ private:
     template<typename... Args, typename U = value_type, 
              typename std::enable_if<std::is_nothrow_move_constructible<U>::value>::type* = nullptr>
     void insert_at_offset_realloc(allocator_type& alloc, size_type offset, size_type new_capacity, Args&&... value_args) {
-        tsl_assert(new_capacity > m_nb_elements);
+        tsl_sh_assert(new_capacity > m_nb_elements);
         
         value_type* new_values = alloc.allocate(new_capacity);
-        tsl_assert(new_values != nullptr); // allocate should throw if there is a failure
+        tsl_sh_assert(new_values != nullptr); // allocate should throw if there is a failure
         
         try {
             construct_value(alloc, new_values + offset, std::forward<Args>(value_args)...);
@@ -691,10 +687,10 @@ private:
     template<typename... Args, typename U = value_type, 
              typename std::enable_if<!std::is_nothrow_move_constructible<U>::value>::type* = nullptr>
     void insert_at_offset_realloc(allocator_type& alloc, size_type offset, size_type new_capacity, Args&&... value_args) {
-        tsl_assert(new_capacity > m_nb_elements);
+        tsl_sh_assert(new_capacity > m_nb_elements);
         
         value_type* new_values = alloc.allocate(new_capacity);
-        tsl_assert(new_values != nullptr); // allocate should throw if there is a failure
+        tsl_sh_assert(new_values != nullptr); // allocate should throw if there is a failure
         
         size_type nb_new_values = 0;
         try {
@@ -716,7 +712,7 @@ private:
             throw;
         }
         
-        tsl_assert(nb_new_values == m_nb_elements + 1);
+        tsl_sh_assert(nb_new_values == m_nb_elements + 1);
         
         destroy_and_deallocate_values(alloc, m_values, m_nb_elements, m_capacity);
         
@@ -739,7 +735,7 @@ private:
     template<typename... Args, typename U = value_type, 
              typename std::enable_if<std::is_nothrow_move_constructible<U>::value>::type* = nullptr>
     void erase_at_offset(allocator_type& alloc, size_type offset) noexcept {
-        tsl_assert(offset < m_nb_elements);
+        tsl_sh_assert(offset < m_nb_elements);
         
         destroy_value(alloc, m_values + offset);
         
@@ -752,7 +748,7 @@ private:
     template<typename... Args, typename U = value_type, 
              typename std::enable_if<!std::is_nothrow_move_constructible<U>::value>::type* = nullptr>
     void erase_at_offset(allocator_type& alloc, size_type offset) {
-        tsl_assert(offset < m_nb_elements);
+        tsl_sh_assert(offset < m_nb_elements);
         
         // Erasing the last element, don't need to reallocate. We keep the capacity.
         if(offset + 1 == m_nb_elements) {
@@ -760,11 +756,11 @@ private:
             return;
         }
         
-        tsl_assert(m_nb_elements > 1);
+        tsl_sh_assert(m_nb_elements > 1);
         const size_type new_capacity = m_nb_elements - 1;
         
         value_type* new_values = alloc.allocate(new_capacity);
-        tsl_assert(new_values != nullptr); // allocate should throw if there is a failure
+        tsl_sh_assert(new_values != nullptr); // allocate should throw if there is a failure
 
         size_type nb_new_values = 0;
         try {
@@ -780,7 +776,7 @@ private:
             throw;
         }
         
-        tsl_assert(nb_new_values == m_nb_elements - 1);
+        tsl_sh_assert(nb_new_values == m_nb_elements - 1);
         
         destroy_and_deallocate_values(alloc, m_values, m_nb_elements, m_capacity);
         
@@ -938,7 +934,7 @@ public:
         }
         
         sparse_iterator& operator++() {
-            tsl_assert(m_sparse_array_it != nullptr);
+            tsl_sh_assert(m_sparse_array_it != nullptr);
             ++m_sparse_array_it;
             
             if(m_sparse_array_it == m_sparse_buckets_it->end()) {
@@ -1015,7 +1011,7 @@ public:
             m_sparse_buckets.resize(nb_sparse_buckets);
             m_first_or_empty_sparse_bucket = m_sparse_buckets.data();
             
-            tsl_assert(!m_sparse_buckets.empty());
+            tsl_sh_assert(!m_sparse_buckets.empty());
             m_sparse_buckets.back().set_as_last();
         }
             
@@ -1254,7 +1250,7 @@ public:
         {
             const auto nb_elements_insert = std::distance(first, last);
             const size_type nb_free_buckets = m_load_threshold_rehash - size();
-            tsl_assert(m_load_threshold_rehash >= size());
+            tsl_sh_assert(m_load_threshold_rehash >= size());
             
             if(nb_elements_insert > 0 && nb_free_buckets < size_type(nb_elements_insert)) {
                 reserve(size() + size_type(nb_elements_insert));
@@ -1324,7 +1320,7 @@ public:
      * we use an iterator instead of a const_iterator.
      */
     iterator erase(iterator pos) {
-        tsl_assert(pos != end() && m_nb_elements > 0);
+        tsl_sh_assert(pos != end() && m_nb_elements > 0);
         auto it_sparse_array_next = pos.m_sparse_buckets_it->erase(*this, pos.m_sparse_array_it);
         m_nb_elements--;
         m_nb_deleted_buckets++;
@@ -1386,7 +1382,7 @@ public:
             swap(static_cast<Allocator&>(*this), static_cast<Allocator&>(other));
         }
         else {
-            tsl_assert(static_cast<Allocator&>(*this) == static_cast<Allocator&>(other));
+            tsl_sh_assert(static_cast<Allocator&>(*this) == static_cast<Allocator&>(other));
         }
         
         swap(static_cast<Hash&>(*this), static_cast<Hash&>(other));
@@ -1531,7 +1527,7 @@ public:
         m_load_threshold_rehash = size_type(float(bucket_count())*m_max_load_factor);
         
         const float max_load_factor_with_deleted_buckets = m_max_load_factor + 0.5f*(1.0f - m_max_load_factor);
-        tsl_assert(max_load_factor_with_deleted_buckets > 0.0f && max_load_factor_with_deleted_buckets <= 1.0f);
+        tsl_sh_assert(max_load_factor_with_deleted_buckets > 0.0f && max_load_factor_with_deleted_buckets <= 1.0f);
         m_load_threshold_clear_deleted = size_type(float(bucket_count())*max_load_factor_with_deleted_buckets);
     }
     
@@ -1614,7 +1610,7 @@ public:
     
     template<class Deserializer>
     void deserialize(Deserializer& deserializer) {
-        tsl_assert(m_bucket_count == 0 && m_sparse_buckets.empty()); // Current hash table must be empty
+        tsl_sh_assert(m_bucket_count == 0 && m_sparse_buckets.empty()); // Current hash table must be empty
         
         const slz_size_type version = deserializer.template deserialize<slz_size_type>();
         (void) version; // Not used for now, but reserve the space in the file for later potential purposes
@@ -1625,7 +1621,7 @@ public:
         const slz_size_type nb_sparse_buckets = deserializer.template deserialize<slz_size_type>();
         
         if(bucket_count == 0) {
-            tsl_assert(nb_elements == 0 && nb_sparse_buckets == 0);
+            tsl_sh_assert(nb_elements == 0 && nb_sparse_buckets == 0);
             this->max_load_factor(max_load_factor);
             
             return;
@@ -1636,7 +1632,7 @@ public:
          * Set m_sparse_buckets
          */
         size_type nb_elements_inserted = 0;
-        tsl_assert(nb_sparse_buckets > 0);
+        tsl_sh_assert(nb_sparse_buckets > 0);
         m_sparse_buckets.reserve(nb_sparse_buckets);
         
         for(auto ibucket = 0; ibucket < nb_sparse_buckets; ibucket++) {
@@ -1663,14 +1659,14 @@ public:
         // GrowthPolicy should not modify the bucket count we got grom deserialization
         size_type bc = bucket_count;
         static_cast<GrowthPolicy&>(*this) = GrowthPolicy(bc);
-        tsl_assert(bc == bucket_count);
+        tsl_sh_assert(bc == bucket_count);
         
         m_bucket_count = bucket_count;
         
-        tsl_assert(nb_elements == nb_elements_inserted);
+        tsl_sh_assert(nb_elements == nb_elements_inserted);
         m_nb_elements = nb_elements;
         
-        tsl_assert(m_nb_deleted_buckets == 0);
+        tsl_sh_assert(m_nb_deleted_buckets == 0);
         
         this->max_load_factor(max_load_factor);
     }
@@ -1710,7 +1706,7 @@ private:
     
     size_type bucket_for_hash(std::size_t hash) const {
         const std::size_t bucket = GrowthPolicy::bucket_for_hash(hash);
-        tsl_assert(sparse_array::sparse_ibucket(bucket) < m_sparse_buckets.size() || 
+        tsl_sh_assert(sparse_array::sparse_ibucket(bucket) < m_sparse_buckets.size() || 
                    (bucket == 0 && m_sparse_buckets.empty()));
         
         return bucket;        
@@ -1723,7 +1719,7 @@ private:
             return (ibucket + 1) & this->m_mask;
         }
         else {
-            tsl_assert(Probing == tsl::sh::probing::quadratic);
+            tsl_sh_assert(Probing == tsl::sh::probing::quadratic);
             return (ibucket + iprobe) & this->m_mask;
         }
     }
@@ -1736,7 +1732,7 @@ private:
             return (ibucket != bucket_count())?ibucket:0;
         }
         else {
-            tsl_assert(Probing == tsl::sh::probing::quadratic);
+            tsl_sh_assert(Probing == tsl::sh::probing::quadratic);
             ibucket += iprobe;
             return (ibucket < bucket_count())?ibucket:ibucket % bucket_count();
         }
@@ -1757,7 +1753,7 @@ private:
             throw;
         }        
         
-        tsl_assert(m_sparse_buckets.empty() || m_sparse_buckets.back().last());
+        tsl_sh_assert(m_sparse_buckets.empty() || m_sparse_buckets.back().last());
     }
     
     void move_buckets_from(sparse_hash&& other) {
@@ -1773,7 +1769,7 @@ private:
             throw;
         }        
         
-        tsl_assert(m_sparse_buckets.empty() || m_sparse_buckets.back().last());
+        tsl_sh_assert(m_sparse_buckets.empty() || m_sparse_buckets.back().last());
     }
     
     
@@ -1785,7 +1781,7 @@ private:
         else if(size() + m_nb_deleted_buckets >= m_load_threshold_clear_deleted) {
             clear_deleted_buckets();
         }
-        tsl_assert(!m_sparse_buckets.empty());
+        tsl_sh_assert(!m_sparse_buckets.empty());
         
         /**
          * We must insert the value in the first empty or deleted bucket we find. If we first find a 
@@ -1918,7 +1914,7 @@ private:
     void clear_deleted_buckets() {
         // TODO could be optimized, we could do it in-place instead of allocating a new bucket array.
         rehash_impl(m_bucket_count);
-        tsl_assert(m_nb_deleted_buckets == 0);
+        tsl_sh_assert(m_nb_deleted_buckets == 0);
     }
 
     template<tsl::sh::exception_safety U = ExceptionSafety, 
@@ -1980,7 +1976,7 @@ private:
                 return;
             }
             else {
-                tsl_assert(!compare_keys(key, 
+                tsl_sh_assert(!compare_keys(key, 
                                          KeySelect()(*(m_first_or_empty_sparse_bucket + sparse_ibucket)->value(index_in_sparse_bucket))));
             }
             
