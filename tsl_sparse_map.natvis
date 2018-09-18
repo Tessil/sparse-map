@@ -33,8 +33,7 @@
         </Expand>
     </Type>
 
-    <!-- Visualization that shows the key in the name column and the key-value pair in the value column -->
-
+    <!-- Visualization that shows the key in the name column and the value in the value column -->
     <Type Name="tsl::sparse_map&lt;*&gt;" ExcludeView="ShowElementsByIndex" Priority="MediumHigh">
         <DisplayString>{{ size={m_ht.m_nb_elements} }}</DisplayString>
         <Expand>
@@ -51,7 +50,7 @@
                 <Loop>
                     <Loop>
                         <Break Condition="num_elements == 0"/>
-                        <Item Name="[{element-&gt;first}]">*element</Item>
+                        <Item Name="[{element-&gt;first}]">*element,view(MapHelper)</Item>
                         <Exec>++element</Exec>
                         <Exec>--num_elements</Exec>
                     </Loop>
