@@ -34,7 +34,6 @@
     </Type>
 
     <!-- Visualization that shows the key in the name column and the key-value pair in the value column -->
-
     <Type Name="tsl::sparse_map&lt;*&gt;" ExcludeView="ShowElementsByIndex" Priority="MediumHigh">
         <DisplayString>{{ size={m_ht.m_nb_elements} }}</DisplayString>
         <Expand>
