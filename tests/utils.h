@@ -104,6 +104,9 @@ public:
     explicit move_only_test(std::int64_t value) : m_value(new std::string(std::to_string(value))) {
     }
     
+    explicit move_only_test(std::string value) : m_value(new std::string(std::move(value))) {
+    }
+    
     move_only_test(const move_only_test&) = delete;
     move_only_test(move_only_test&&) = default;
     move_only_test& operator=(const move_only_test&) = delete;
@@ -309,5 +312,88 @@ inline HMap utils::get_filled_hash_map(std::size_t nb_elements) {
     
     return map;
 }
+
+
+
+/**
+ * serializer and deserializer helpers to test serialize(...) and deserialize(...) functions
+ */
+template<typename Stream>
+class serializer {
+public:    
+    serializer(Stream& output_stream): m_ostream(output_stream) {
+    }
+    
+    template<typename T>
+    void serialize(const T& val) {
+        serialize_impl(val);
+    }
+    
+private:   
+    void serialize_impl(const std::string& val) {
+        serialize_impl(static_cast<std::uint64_t>(val.size()));
+        m_ostream.write(val.data(), val.size());
+    }
+    
+    void serialize_impl(const move_only_test& val) {
+        serialize_impl(val.value());
+    }
+    
+    void serialize_impl(const std::uint64_t& val) {
+        m_ostream.write(reinterpret_cast<const char*>(&val), sizeof(val));
+    }
+    
+    void serialize_impl(const float& val) {
+        m_ostream.write(reinterpret_cast<const char*>(&val), sizeof(val));
+    }
+    
+    Stream& m_ostream;
+};
+
+template<typename Stream>
+class deserializer {
+public:    
+    deserializer(Stream& input_stream): m_istream(input_stream) {
+    }
+    
+    template<typename T>
+    T deserialize() {
+        return deserialize_impl<T>();
+    }
+    
+private:
+    template<class T, typename std::enable_if<std::is_same<std::string, T>::value>::type* = nullptr>
+    std::string deserialize_impl() {
+        const std::uint64_t str_size = deserialize_impl<std::uint64_t>();
+        
+        std::vector<char> chars(str_size);
+        m_istream.read(chars.data(), str_size);
+        
+        return std::string(chars.data(), chars.size());
+    }
+    
+    template<class T, typename std::enable_if<std::is_same<move_only_test, T>::value>::type* = nullptr>
+    move_only_test deserialize_impl() {
+        return move_only_test(deserialize_impl<std::string>());
+    }
+    
+    template<class T, typename std::enable_if<std::is_same<std::uint64_t, T>::value>::type* = nullptr>
+    std::uint64_t deserialize_impl() {
+        std::uint64_t val;
+        m_istream.read(reinterpret_cast<char*>(&val), sizeof(val));
+        
+        return val;
+    }
+    
+    template<class T, typename std::enable_if<std::is_same<float, T>::value>::type* = nullptr>
+    float deserialize_impl() {
+        float val;
+        m_istream.read(reinterpret_cast<char*>(&val), sizeof(val));
+        
+        return val;
+    }
+    
+    Stream& m_istream;
+};
 
 #endif

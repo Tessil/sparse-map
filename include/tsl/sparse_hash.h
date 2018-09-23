@@ -1564,133 +1564,12 @@ public:
     
     template<class Serializer>
     void serialize(Serializer& serializer) {
-        /*
-         * TODO What if non-portable Hash function? Or different GrowthPolicy?
-         * TODO What if switch between 32 bits and 64 bits systems? bitmap_type is not the same between these systems, 
-         * meaning elements would not be in the same positions. 
-         * TODO What if statefull Hash or KeyEqual? 
-         * TODO Move between big-endian and little-endian systems? Leave it to the provided Serializer?
-         * TODO Serializer needs to be able to serialize Key, T, slz_size_type and float. Add user friendly error if
-         * these methods are not found.
-         */
-        if(m_nb_deleted_buckets > 0) {
-            clear_deleted_buckets();
-        }
-        
-        const slz_size_type version = SERIALIZATION_VERSION;
-        serializer.serialize(version);
-        
-        const slz_size_type bucket_count = m_bucket_count;
-        serializer.serialize(bucket_count);
-        
-        const slz_size_type nb_elements = m_nb_elements;
-        serializer.serialize(nb_elements);
-        
-        const float max_load_factor = m_max_load_factor;
-        serializer.serialize(max_load_factor);
-        
-        const slz_size_type nb_sparse_buckets = m_sparse_buckets.size(); 
-        serializer.serialize(nb_sparse_buckets);
-        
-        
-        for(const auto& bucket: m_sparse_buckets) {
-            const slz_size_type sparse_bucket_size = bucket.size();
-            serializer.serialize(sparse_bucket_size);
-            
-            size_type value_offset = 0;
-            for(const auto& value: bucket) {
-                const slz_size_type value_index = bucket.offset_to_index(value_offset);
-                serializer.serialize(value_index);
-                serialize_value(serializer, value);
-                
-                value_offset++;
-            }
-        }
+        serialize_impl(serializer);
     }
     
     template<class Deserializer>
-    void deserialize(Deserializer& deserializer) {
-        tsl_sh_assert(m_bucket_count == 0 && m_sparse_buckets.empty()); // Current hash table must be empty
-        
-        const slz_size_type version = deserializer.template deserialize<slz_size_type>();
-        (void) version; // Not used for now, but reserve the space in the file for later potential purposes
-        
-        const slz_size_type bucket_count = deserializer.template deserialize<slz_size_type>();
-        const slz_size_type nb_elements = deserializer.template deserialize<slz_size_type>();
-        const float max_load_factor = deserializer.template deserialize<float>();
-        const slz_size_type nb_sparse_buckets = deserializer.template deserialize<slz_size_type>();
-        
-        if(bucket_count == 0) {
-            tsl_sh_assert(nb_elements == 0 && nb_sparse_buckets == 0);
-            this->max_load_factor(max_load_factor);
-            
-            return;
-        }
-        
-        
-        /*
-         * Set m_sparse_buckets
-         */
-        size_type nb_elements_inserted = 0;
-        tsl_sh_assert(nb_sparse_buckets > 0);
-        m_sparse_buckets.reserve(nb_sparse_buckets);
-        
-        for(auto ibucket = 0; ibucket < nb_sparse_buckets; ibucket++) {
-            const slz_size_type sparse_bucket_size = deserializer.template deserialize<slz_size_type>();
-            m_sparse_buckets.emplace_back(sparse_bucket_size, static_cast<Allocator&>(*this));
-            
-            // TODO Could be slightly optimized
-            for(auto ivalue = 0; ivalue < sparse_bucket_size; ivalue++) {
-                const slz_size_type index_of_value = deserializer.template deserialize<slz_size_type>();
-                m_sparse_buckets[ibucket].set(static_cast<Allocator&>(*this), index_of_value, 
-                                              deserialize_value(deserializer));
-            }
-            
-            nb_elements_inserted += sparse_bucket_size;
-        }
-        
-        m_sparse_buckets.back().set_as_last();
-        m_first_or_empty_sparse_bucket = m_sparse_buckets.data();
-        
-        
-        /*
-         * Set other variables
-         */
-        // GrowthPolicy should not modify the bucket count we got grom deserialization
-        size_type bc = bucket_count;
-        static_cast<GrowthPolicy&>(*this) = GrowthPolicy(bc);
-        tsl_sh_assert(bc == bucket_count);
-        
-        m_bucket_count = bucket_count;
-        
-        tsl_sh_assert(nb_elements == nb_elements_inserted);
-        m_nb_elements = nb_elements;
-        
-        tsl_sh_assert(m_nb_deleted_buckets == 0);
-        
-        this->max_load_factor(max_load_factor);
-    }
-    
-    template<class Serializer, class U = ValueSelect, typename std::enable_if<!has_mapped_type<U>::value>::type* = nullptr>
-    void serialize_value(Serializer& serializer, const value_type& value) {
-        serializer.serialize(value);
-    }
-    
-    template<class Serializer, class U = ValueSelect, typename std::enable_if<has_mapped_type<U>::value>::type* = nullptr>
-    void serialize_value(Serializer& serializer, const value_type& value) {
-        serializer.serialize(value.first);
-        serializer.serialize(value.second);
-    }
-    
-    template<class Deserializer, class U = ValueSelect, typename std::enable_if<!has_mapped_type<U>::value>::type* = nullptr>
-    value_type deserialize_value(Deserializer& deserializer) {
-        return deserializer.template deserialize<value_type>();
-    }
-    
-    template<class Deserializer, class U = ValueSelect, typename std::enable_if<has_mapped_type<U>::value>::type* = nullptr>
-    value_type deserialize_value(Deserializer& deserializer) {
-        key_type key = deserializer.template deserialize<key_type>();
-        return std::make_pair(std::move(key), deserializer.template deserialize<typename ValueSelect::value_type>());
+    void deserialize(Deserializer& deserializer, bool hash_compatible) {
+        deserialize_impl(deserializer, hash_compatible);
     }
     
 private:
@@ -1985,19 +1864,164 @@ private:
         }
     }
     
+    template<class Serializer>
+    void serialize_impl(Serializer& serializer) {
+        if(m_nb_deleted_buckets > 0) {
+            clear_deleted_buckets();
+        }
+        
+        const slz_size_type version = SERIALIZATION_PROTOCOL_VERSION;
+        serializer.serialize(version);
+        
+        const slz_size_type bucket_count = m_bucket_count;
+        serializer.serialize(bucket_count);
+        
+        const slz_size_type nb_elements = m_nb_elements;
+        serializer.serialize(nb_elements);
+        
+        const float max_load_factor = m_max_load_factor;
+        serializer.serialize(max_load_factor);
+        
+        const slz_size_type nb_sparse_buckets = m_sparse_buckets.size(); 
+        serializer.serialize(nb_sparse_buckets);
+        
+        
+        for(const auto& bucket: m_sparse_buckets) {
+            const slz_size_type sparse_bucket_size = bucket.size();
+            serializer.serialize(sparse_bucket_size);
+            
+            size_type value_offset = 0;
+            for(const auto& value: bucket) {
+                const slz_size_type value_index = bucket.offset_to_index(value_offset);
+                serializer.serialize(value_index);
+                serialize_value(serializer, value);
+                
+                value_offset++;
+            }
+        }
+    }
+    
+    template<class Deserializer>
+    void deserialize_impl(Deserializer& deserializer, bool hash_compatible) {
+        tsl_sh_assert(m_bucket_count == 0 && m_sparse_buckets.empty()); // Current hash table must be empty
+        
+        const slz_size_type version = deserializer.template deserialize<slz_size_type>();
+        // For now we only have one version of the serialization protocol. 
+        // If it doesn't match there is a problem with the file.
+        if(version != SERIALIZATION_PROTOCOL_VERSION) {
+            throw std::runtime_error("Can't deserialize the sparse_map/set. The protocol version header is invalid.");
+        }
+        
+        const slz_size_type bucket_count = deserializer.template deserialize<slz_size_type>();
+        const slz_size_type nb_elements = deserializer.template deserialize<slz_size_type>();
+        const float max_load_factor = deserializer.template deserialize<float>();
+        const slz_size_type nb_sparse_buckets = deserializer.template deserialize<slz_size_type>();
+        
+        this->max_load_factor(max_load_factor);
+        
+        if(bucket_count == 0) {
+            tsl_sh_assert(nb_elements == 0 && nb_sparse_buckets == 0);
+            return;
+        }
+        
+        
+        if(!hash_compatible) {
+            reserve(nb_elements);
+            
+            for(slz_size_type ibucket = 0; ibucket < nb_sparse_buckets; ibucket++) {
+                const slz_size_type sparse_bucket_size = deserializer.template deserialize<slz_size_type>();
+                for(slz_size_type ivalue = 0; ivalue < sparse_bucket_size; ivalue++) {
+                    const slz_size_type index_of_value = deserializer.template deserialize<slz_size_type>();
+                    (void) index_of_value;
+                    
+                    insert(deserialize_value(deserializer));
+                }
+            }
+        }
+        else {
+            // GrowthPolicy should not modify the bucket count we got from deserialization
+            size_type bc = bucket_count;
+            static_cast<GrowthPolicy&>(*this) = GrowthPolicy(bc);
+            if(bc != bucket_count) {
+                throw std::runtime_error("The deserialized bucket_count isn't valid with the deserialized growth policy.");
+            }
+            
+            m_bucket_count = bucket_count;
+            m_nb_elements = nb_elements;
+            tsl_sh_assert(m_nb_deleted_buckets == 0);
+            
+            if(float(m_nb_elements)/float(m_bucket_count) > this->max_load_factor()) {
+                throw std::runtime_error("Invalid max_load_factor. Check that the serializer and deserializer supports "
+                                         "floats correctly as they can be converted implicitely to ints.");
+            }
+            
+            deserialize_sparse_buckets(deserializer, nb_sparse_buckets);
+        }
+    }
+    
+    
+    template<class Deserializer>
+    void deserialize_sparse_buckets(Deserializer& deserializer, std::size_t nb_sparse_buckets) {
+        /*
+         * Set m_sparse_buckets and m_first_or_empty_sparse_bucket
+         */
+        tsl_sh_assert(nb_sparse_buckets > 0);
+        m_sparse_buckets.reserve(nb_sparse_buckets);
+        
+        for(slz_size_type ibucket = 0; ibucket < nb_sparse_buckets; ibucket++) {
+            const slz_size_type sparse_bucket_size = deserializer.template deserialize<slz_size_type>();
+            m_sparse_buckets.emplace_back(sparse_bucket_size, static_cast<Allocator&>(*this));
+            
+            // TODO Could be slightly optimized
+            for(slz_size_type ivalue = 0; ivalue < sparse_bucket_size; ivalue++) {
+                const slz_size_type index_of_value = deserializer.template deserialize<slz_size_type>();
+                auto it = m_sparse_buckets[ibucket].set(static_cast<Allocator&>(*this), index_of_value, 
+                                                        deserialize_value(deserializer));
+                
+                (void) it;
+            }
+        }
+        
+        m_sparse_buckets.back().set_as_last();
+        m_first_or_empty_sparse_bucket = m_sparse_buckets.data();
+    }
+    
+    template<class Serializer, class U = ValueSelect, typename std::enable_if<!has_mapped_type<U>::value>::type* = nullptr>
+    void serialize_value(Serializer& serializer, const value_type& value) {
+        serializer.serialize(value);
+    }
+    
+    template<class Serializer, class U = ValueSelect, typename std::enable_if<has_mapped_type<U>::value>::type* = nullptr>
+    void serialize_value(Serializer& serializer, const value_type& value) {
+        serializer.serialize(value.first);
+        serializer.serialize(value.second);
+    }
+    
+    template<class Deserializer, class U = ValueSelect, typename std::enable_if<!has_mapped_type<U>::value>::type* = nullptr>
+    value_type deserialize_value(Deserializer& deserializer) {
+        return deserializer.template deserialize<value_type>();
+    }
+    
+    template<class Deserializer, class U = ValueSelect, typename std::enable_if<has_mapped_type<U>::value>::type* = nullptr>
+    value_type deserialize_value(Deserializer& deserializer) {
+        key_type key = deserializer.template deserialize<key_type>();
+        return std::make_pair(std::move(key), deserializer.template deserialize<typename ValueSelect::value_type>());
+    }
+    
 public:    
     static const size_type DEFAULT_INIT_BUCKETS_SIZE = sparse_array::DEFAULT_INIT_BUCKETS_SIZE;
     static constexpr float DEFAULT_MAX_LOAD_FACTOR = 0.5f;
     
     /**
-     * Fixed size type used to represent size_type values on serialization.
+     * Fixed size type used to represent size_type values on serialization. Need to be big enough
+     * to represent a std::size_t on 32 and 64 bits platforms, and must be the same size on both platforms.
      */
     using slz_size_type = std::uint64_t;
     
     /**
      * Protocol version currenlty used for serialization.
      */
-    static const std::size_t SERIALIZATION_VERSION = 1;
+    static const std::size_t SERIALIZATION_PROTOCOL_VERSION = 1;
     
     /**
      * Return an always valid pointer to an static empty bucket_entry with last_bucket() == true.

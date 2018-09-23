@@ -508,9 +508,9 @@ public:
     }
     
     template<class Deserializer>
-    static sparse_set deserialize(Deserializer& deserializer) {
+    static sparse_set deserialize(Deserializer& deserializer, bool hash_compatible = false) {
         sparse_set set(0);
-        set.m_ht.deserialize(deserializer);
+        set.m_ht.deserialize(deserializer, hash_compatible);
         
         return set;
     }

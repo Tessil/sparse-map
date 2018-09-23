@@ -31,6 +31,7 @@
 #include <functional>
 #include <iterator>
 #include <memory>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <tuple>
@@ -827,6 +828,102 @@ BOOST_AUTO_TEST_CASE(test_swap) {
     
     BOOST_CHECK(map == (tsl::sparse_map<std::int64_t, std::int64_t>{{4, 40}, {5, 50}, {6, 60}}));
     BOOST_CHECK(map2 == (tsl::sparse_map<std::int64_t, std::int64_t>{{1, 10}, {8, 80}, {3, 30}, {4, 40}}));
+}
+
+
+    
+/**
+ * serialize and deserialize
+ */
+BOOST_AUTO_TEST_CASE(test_serialize_desearialize_empty_map) {
+    // serialize empty map; deserialize in new map; check equal.
+    // for deserialization, test it with and without hash compatibility.
+    std::stringstream buffer;
+    buffer.exceptions(buffer.badbit | buffer.failbit | buffer.eofbit);
+    
+    tsl::sparse_map<move_only_test, std::string> empty_map(0);
+    serializer<std::stringstream> serializer(buffer);
+    empty_map.serialize(serializer);
+    
+    
+    
+    
+    deserializer<std::stringstream> deserializer(buffer);
+    auto empty_map_deserialized = decltype(empty_map)::deserialize(deserializer, true);
+    BOOST_CHECK(empty_map_deserialized == empty_map);
+    
+    buffer.seekg(0);
+    empty_map_deserialized = decltype(empty_map)::deserialize(deserializer, false);
+    BOOST_CHECK(empty_map_deserialized == empty_map);
+}
+
+BOOST_AUTO_TEST_CASE(test_serialize_desearialize_map) {
+    // insert x values; delete some values; serialize map; deserialize in new map; check equal.
+    // for deserialization, test it with and without hash compatibility.
+    const std::size_t nb_values = 1000;
+    
+    std::stringstream buffer;
+    buffer.exceptions(buffer.badbit | buffer.failbit | buffer.eofbit);
+    
+    
+    tsl::sparse_map<std::string, move_only_test> map;
+    for(std::size_t i = 0; i < nb_values + 40; i++) {
+        map.insert({utils::get_key<std::string>(i), utils::get_value<move_only_test>(i)});
+    }
+    
+    for(std::size_t i = nb_values; i < nb_values + 40; i++) {
+        map.erase(utils::get_key<std::string>(i));
+    }
+    BOOST_CHECK_EQUAL(map.size(), nb_values);
+    
+    serializer<std::stringstream> map_serializer(buffer);
+    map.serialize(map_serializer);
+    
+    
+    
+    
+    deserializer<std::stringstream> map_deserializer(buffer);
+    auto map_deserialized = decltype(map)::deserialize(map_deserializer, true);
+    BOOST_CHECK(map_deserialized == map);
+    
+    buffer.seekg(0);
+    map_deserialized = decltype(map)::deserialize(map_deserializer, false);
+    BOOST_CHECK(map_deserialized == map);
+}
+
+BOOST_AUTO_TEST_CASE(test_serialize_desearialize_map_with_different_hash) {
+    // insert x values; serialize map; deserialize in new map which has a different hash; check equal
+    struct hash_str_with_size {
+        std::size_t operator()(const std::string& str) const {
+            return str.size();
+        }
+    };
+    
+    
+    const std::size_t nb_values = 1000;
+    
+    std::stringstream buffer;
+    buffer.exceptions(buffer.badbit | buffer.failbit | buffer.eofbit);
+    
+    
+    tsl::sparse_map<std::string, move_only_test> map;
+    for(std::size_t i = 0; i < nb_values; i++) {
+        map.insert({utils::get_key<std::string>(i), utils::get_value<move_only_test>(i)});
+    }
+    BOOST_CHECK_EQUAL(map.size(), nb_values);
+    
+    
+    serializer<std::stringstream> map_serializer(buffer);
+    map.serialize(map_serializer);
+    
+    
+    deserializer<std::stringstream> map_deserializer(buffer);
+    auto map_deserialized = tsl::sparse_map<std::string, move_only_test, hash_str_with_size>::deserialize(map_deserializer);
+    
+    BOOST_CHECK_EQUAL(map_deserialized.size(), map.size());
+    for(const auto& val: map) {
+        BOOST_CHECK(map_deserialized.find(val.first) != map_deserialized.end());
+    }
 }
 
 

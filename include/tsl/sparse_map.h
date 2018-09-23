@@ -644,9 +644,9 @@ public:
     }
     
     template<class Deserializer>
-    static sparse_map deserialize(Deserializer& deserializer) {
+    static sparse_map deserialize(Deserializer& deserializer, bool hash_compatible = false) {
         sparse_map map(0);
-        map.m_ht.deserialize(deserializer);
+        map.m_ht.deserialize(deserializer, hash_compatible);
         
         return map;
     }
