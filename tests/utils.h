@@ -325,25 +325,25 @@ public:
     }
     
     template<typename T>
-    void serialize(const T& val) {
-        serialize_impl(val);
+    void operator()(const T& val) {
+        serialize(val);
     }
     
 private:   
-    void serialize_impl(const std::string& val) {
-        serialize_impl(static_cast<std::uint64_t>(val.size()));
+    void serialize(const std::string& val) {
+        serialize(static_cast<std::uint64_t>(val.size()));
         m_ostream.write(val.data(), val.size());
     }
     
-    void serialize_impl(const move_only_test& val) {
-        serialize_impl(val.value());
+    void serialize(const move_only_test& val) {
+        serialize(val.value());
     }
     
-    void serialize_impl(const std::uint64_t& val) {
+    void serialize(const std::uint64_t& val) {
         m_ostream.write(reinterpret_cast<const char*>(&val), sizeof(val));
     }
     
-    void serialize_impl(const float& val) {
+    void serialize(const float& val) {
         m_ostream.write(reinterpret_cast<const char*>(&val), sizeof(val));
     }
     
@@ -357,14 +357,14 @@ public:
     }
     
     template<typename T>
-    T deserialize() {
-        return deserialize_impl<T>();
+    T operator()() {
+        return deserialize<T>();
     }
     
 private:
     template<class T, typename std::enable_if<std::is_same<std::string, T>::value>::type* = nullptr>
-    std::string deserialize_impl() {
-        const std::uint64_t str_size = deserialize_impl<std::uint64_t>();
+    std::string deserialize() {
+        const std::uint64_t str_size = deserialize<std::uint64_t>();
         
         std::vector<char> chars(str_size);
         m_istream.read(chars.data(), str_size);
@@ -373,12 +373,12 @@ private:
     }
     
     template<class T, typename std::enable_if<std::is_same<move_only_test, T>::value>::type* = nullptr>
-    move_only_test deserialize_impl() {
-        return move_only_test(deserialize_impl<std::string>());
+    move_only_test deserialize() {
+        return move_only_test(deserialize<std::string>());
     }
     
     template<class T, typename std::enable_if<std::is_same<std::uint64_t, T>::value>::type* = nullptr>
-    std::uint64_t deserialize_impl() {
+    std::uint64_t deserialize() {
         std::uint64_t val;
         m_istream.read(reinterpret_cast<char*>(&val), sizeof(val));
         
@@ -386,7 +386,7 @@ private:
     }
     
     template<class T, typename std::enable_if<std::is_same<float, T>::value>::type* = nullptr>
-    float deserialize_impl() {
+    float deserialize() {
         float val;
         m_istream.read(reinterpret_cast<char*>(&val), sizeof(val));
         
