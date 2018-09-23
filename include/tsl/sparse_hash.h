@@ -865,6 +865,12 @@ private:
                             typename std::allocator_traits<allocator_type>::template rebind_alloc<sparse_array>;
     using sparse_buckets_container = std::vector<sparse_array, sparse_buckets_allocator>;
     
+    /**
+     * Fixed size type used to represent size_type values on serialization. Need to be big enough
+     * to represent a std::size_t on 32 and 64 bits platforms, and must be the same size on both platforms.
+     */
+    using slz_size_type = std::uint64_t;
+    
 public:
     /**
      * The `operator*()` and `operator->()` methods return a const reference and const pointer respectively to the 
@@ -1926,7 +1932,7 @@ private:
         
         
         if(!hash_compatible) {
-            reserve(nb_elements);
+            reserve(static_cast<size_type>(nb_elements));
             
             for(slz_size_type ibucket = 0; ibucket < nb_sparse_buckets; ibucket++) {
                 const slz_size_type sparse_bucket_size = deserializer.template deserialize<slz_size_type>();
@@ -1940,14 +1946,14 @@ private:
         }
         else {
             // GrowthPolicy should not modify the bucket count we got from deserialization
-            size_type bc = bucket_count;
+            size_type bc = static_cast<size_type>(bucket_count);
             static_cast<GrowthPolicy&>(*this) = GrowthPolicy(bc);
             if(bc != bucket_count) {
                 throw std::runtime_error("The deserialized bucket_count isn't valid with the deserialized growth policy.");
             }
             
-            m_bucket_count = bucket_count;
-            m_nb_elements = nb_elements;
+            m_bucket_count = static_cast<size_type>(bucket_count);
+            m_nb_elements = static_cast<size_type>(nb_elements);
             tsl_sh_assert(m_nb_deleted_buckets == 0);
             
             if(float(m_nb_elements)/float(m_bucket_count) > this->max_load_factor()) {
@@ -1961,21 +1967,23 @@ private:
     
     
     template<class Deserializer>
-    void deserialize_sparse_buckets(Deserializer& deserializer, std::size_t nb_sparse_buckets) {
+    void deserialize_sparse_buckets(Deserializer& deserializer, slz_size_type nb_sparse_buckets) {
         /*
          * Set m_sparse_buckets and m_first_or_empty_sparse_bucket
          */
         tsl_sh_assert(nb_sparse_buckets > 0);
-        m_sparse_buckets.reserve(nb_sparse_buckets);
+        m_sparse_buckets.reserve(static_cast<size_type>(nb_sparse_buckets));
         
         for(slz_size_type ibucket = 0; ibucket < nb_sparse_buckets; ibucket++) {
             const slz_size_type sparse_bucket_size = deserializer.template deserialize<slz_size_type>();
-            m_sparse_buckets.emplace_back(sparse_bucket_size, static_cast<Allocator&>(*this));
+            m_sparse_buckets.emplace_back(static_cast<typename sparse_array::size_type>(sparse_bucket_size), 
+                                          static_cast<Allocator&>(*this));
             
             // TODO Could be slightly optimized
             for(slz_size_type ivalue = 0; ivalue < sparse_bucket_size; ivalue++) {
                 const slz_size_type index_of_value = deserializer.template deserialize<slz_size_type>();
-                auto it = m_sparse_buckets[ibucket].set(static_cast<Allocator&>(*this), index_of_value, 
+                auto it = m_sparse_buckets[ibucket].set(static_cast<Allocator&>(*this), 
+                                                        static_cast<typename sparse_array::size_type>(index_of_value),
                                                         deserialize_value(deserializer));
                 
                 (void) it;
@@ -2013,15 +2021,9 @@ public:
     static constexpr float DEFAULT_MAX_LOAD_FACTOR = 0.5f;
     
     /**
-     * Fixed size type used to represent size_type values on serialization. Need to be big enough
-     * to represent a std::size_t on 32 and 64 bits platforms, and must be the same size on both platforms.
-     */
-    using slz_size_type = std::uint64_t;
-    
-    /**
      * Protocol version currenlty used for serialization.
      */
-    static const std::size_t SERIALIZATION_PROTOCOL_VERSION = 1;
+    static const slz_size_type SERIALIZATION_PROTOCOL_VERSION = 1;
     
     /**
      * Return an always valid pointer to an static empty bucket_entry with last_bucket() == true.
