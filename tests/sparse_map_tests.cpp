@@ -842,18 +842,16 @@ BOOST_AUTO_TEST_CASE(test_serialize_desearialize_empty_map) {
     buffer.exceptions(buffer.badbit | buffer.failbit | buffer.eofbit);
     
     tsl::sparse_map<move_only_test, std::string> empty_map(0);
-    serializer<std::stringstream> serializer(buffer);
-    empty_map.serialize(serializer);
+    empty_map.serialize(serializer(), buffer);
     
     
     
     
-    deserializer<std::stringstream> deserializer(buffer);
-    auto empty_map_deserialized = decltype(empty_map)::deserialize(deserializer, true);
+    auto empty_map_deserialized = decltype(empty_map)::deserialize(serializer(), buffer, true);
     BOOST_CHECK(empty_map_deserialized == empty_map);
     
     buffer.seekg(0);
-    empty_map_deserialized = decltype(empty_map)::deserialize(deserializer, false);
+    empty_map_deserialized = decltype(empty_map)::deserialize(serializer(), buffer, false);
     BOOST_CHECK(empty_map_deserialized == empty_map);
 }
 
@@ -876,18 +874,16 @@ BOOST_AUTO_TEST_CASE(test_serialize_desearialize_map) {
     }
     BOOST_CHECK_EQUAL(map.size(), nb_values);
     
-    serializer<std::stringstream> map_serializer(buffer);
-    map.serialize(map_serializer);
+    map.serialize(serializer(), buffer);
     
     
     
     
-    deserializer<std::stringstream> map_deserializer(buffer);
-    auto map_deserialized = decltype(map)::deserialize(map_deserializer, true);
+    auto map_deserialized = decltype(map)::deserialize(serializer(), buffer, true);
     BOOST_CHECK(map_deserialized == map);
     
     buffer.seekg(0);
-    map_deserialized = decltype(map)::deserialize(map_deserializer, false);
+    map_deserialized = decltype(map)::deserialize(serializer(), buffer, false);
     BOOST_CHECK(map_deserialized == map);
 }
 
@@ -912,13 +908,13 @@ BOOST_AUTO_TEST_CASE(test_serialize_desearialize_map_with_different_hash) {
     }
     BOOST_CHECK_EQUAL(map.size(), nb_values);
     
-    
-    serializer<std::stringstream> map_serializer(buffer);
-    map.serialize(map_serializer);
+    map.serialize(serializer(), buffer);
     
     
-    deserializer<std::stringstream> map_deserializer(buffer);
-    auto map_deserialized = tsl::sparse_map<std::string, move_only_test, hash_str_with_size>::deserialize(map_deserializer);
+    
+    
+    auto map_deserialized = 
+            tsl::sparse_map<std::string, move_only_test, hash_str_with_size>::deserialize(serializer(), buffer);
     
     BOOST_CHECK_EQUAL(map_deserialized.size(), map.size());
     for(const auto& val: map) {

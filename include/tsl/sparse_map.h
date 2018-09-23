@@ -638,15 +638,15 @@ public:
         return m_ht.mutable_iterator(pos);
     }
     
-    template<class Serializer>
-    void serialize(Serializer& serializer) {
-        m_ht.serialize(serializer);
+    template<class Serializer, class OutputStream>
+    void serialize(const Serializer& serializer, OutputStream& writer) {
+        m_ht.serialize(serializer, writer);
     }
     
-    template<class Deserializer>
-    static sparse_map deserialize(Deserializer& deserializer, bool hash_compatible = false) {
+    template<class Deserializer, class InputStream>
+    static sparse_map deserialize(const Deserializer& deserializer, InputStream& istream, bool hash_compatible = false) {
         sparse_map map(0);
-        map.m_ht.deserialize(deserializer, hash_compatible);
+        map.m_ht.deserialize(deserializer, istream, hash_compatible);
         
         return map;
     }

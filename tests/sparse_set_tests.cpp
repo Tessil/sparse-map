@@ -135,18 +135,16 @@ BOOST_AUTO_TEST_CASE(test_serialize_desearialize_empty_set) {
     buffer.exceptions(buffer.badbit | buffer.failbit | buffer.eofbit);
     
     tsl::sparse_set<move_only_test> empty_set(0);
-    serializer<std::stringstream> serializer(buffer);
-    empty_set.serialize(serializer);
+    empty_set.serialize(serializer(), buffer);
     
     
     
     
-    deserializer<std::stringstream> deserializer(buffer);
-    auto empty_set_deserialized = decltype(empty_set)::deserialize(deserializer, true);
+    auto empty_set_deserialized = decltype(empty_set)::deserialize(serializer(), buffer, true);
     BOOST_CHECK(empty_set_deserialized == empty_set);
     
     buffer.seekg(0);
-    empty_set_deserialized = decltype(empty_set)::deserialize(deserializer, false);
+    empty_set_deserialized = decltype(empty_set)::deserialize(serializer(), buffer, false);
     BOOST_CHECK(empty_set_deserialized == empty_set);
 }
 
@@ -169,18 +167,16 @@ BOOST_AUTO_TEST_CASE(test_serialize_desearialize_set) {
     }
     BOOST_CHECK_EQUAL(set.size(), nb_values);
     
-    serializer<std::stringstream> set_serializer(buffer);
-    set.serialize(set_serializer);
+    set.serialize(serializer(), buffer);
     
     
     
     
-    deserializer<std::stringstream> set_deserializer(buffer);
-    auto set_deserialized = decltype(set)::deserialize(set_deserializer, true);
+    auto set_deserialized = decltype(set)::deserialize(serializer(), buffer, true);
     BOOST_CHECK(set_deserialized == set);
     
     buffer.seekg(0);
-    set_deserialized = decltype(set)::deserialize(set_deserializer, false);
+    set_deserialized = decltype(set)::deserialize(serializer(), buffer, false);
     BOOST_CHECK(set_deserialized == set);
 }
 
@@ -205,13 +201,12 @@ BOOST_AUTO_TEST_CASE(test_serialize_desearialize_set_with_different_hash) {
     }
     BOOST_CHECK_EQUAL(set.size(), nb_values);
     
-    
-    serializer<std::stringstream> set_serializer(buffer);
-    set.serialize(set_serializer);
+    set.serialize(serializer(), buffer);
     
     
-    deserializer<std::stringstream> set_deserializer(buffer);
-    auto set_deserialized = tsl::sparse_set<move_only_test, hash_str_with_size>::deserialize(set_deserializer);
+    
+    
+    auto set_deserialized = tsl::sparse_set<move_only_test, hash_str_with_size>::deserialize(serializer(), buffer);
     
     BOOST_CHECK_EQUAL(set_deserialized.size(), set.size());
     for(const auto& val: set) {
