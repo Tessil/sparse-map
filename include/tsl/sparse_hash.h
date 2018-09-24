@@ -1896,7 +1896,7 @@ private:
             const slz_size_type sparse_bucket_size = bucket.size();
             serializer(sparse_bucket_size, ostream);
             
-            size_type value_offset = 0;
+            typename sparse_array::size_type value_offset = 0;
             for(const value_type& value: bucket) {
                 const slz_size_type value_index = bucket.offset_to_index(value_offset);
                 serializer(value_index, ostream);
