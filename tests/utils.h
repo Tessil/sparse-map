@@ -379,7 +379,7 @@ private:
     template<class T, class InputStream, 
              typename std::enable_if<std::is_same<std::string, T>::value>::type* = nullptr>
     T deserialize(InputStream& istream) const {
-        const std::uint64_t str_size = deserialize<std::uint64_t>(istream);
+        const std::size_t str_size = static_cast<std::size_t>(deserialize<std::uint64_t>(istream));
         
         std::vector<char> chars(str_size);
         istream.read(chars.data(), str_size);
