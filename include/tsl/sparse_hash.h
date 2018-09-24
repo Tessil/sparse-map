@@ -1974,7 +1974,7 @@ private:
         tsl_sh_assert(nb_sparse_buckets > 0);
         m_sparse_buckets.reserve(static_cast<size_type>(nb_sparse_buckets));
         
-        for(slz_size_type ibucket = 0; ibucket < nb_sparse_buckets; ibucket++) {
+        for(std::size_t ibucket = 0; ibucket < static_cast<size_type>(nb_sparse_buckets); ibucket++) {
             const slz_size_type sparse_bucket_size = deserialize_value<slz_size_type>(deserializer, istream);
             m_sparse_buckets.emplace_back(static_cast<typename sparse_array::size_type>(sparse_bucket_size), 
                                           static_cast<Allocator&>(*this));
