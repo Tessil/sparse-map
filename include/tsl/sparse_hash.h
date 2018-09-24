@@ -1911,17 +1911,17 @@ private:
     void deserialize_impl(const Deserializer& deserializer, InputStream& istream, bool hash_compatible) {
         tsl_sh_assert(m_bucket_count == 0 && m_sparse_buckets.empty()); // Current hash table must be empty
         
-        const slz_size_type version = deserializer.Deserializer::template operator()<slz_size_type>(istream);
+        const slz_size_type version = deserialize_value<slz_size_type>(deserializer, istream);
         // For now we only have one version of the serialization protocol. 
         // If it doesn't match there is a problem with the file.
         if(version != SERIALIZATION_PROTOCOL_VERSION) {
             throw std::runtime_error("Can't deserialize the sparse_map/set. The protocol version header is invalid.");
         }
         
-        const slz_size_type bucket_count = deserializer.Deserializer::template operator()<slz_size_type>(istream);
-        const slz_size_type nb_elements = deserializer.Deserializer::template operator()<slz_size_type>(istream);
-        const float max_load_factor = deserializer.Deserializer::template operator()<float>(istream);
-        const slz_size_type nb_sparse_buckets = deserializer.Deserializer::template operator()<slz_size_type>(istream);
+        const slz_size_type bucket_count = deserialize_value<slz_size_type>(deserializer, istream);
+        const slz_size_type nb_elements = deserialize_value<slz_size_type>(deserializer, istream);
+        const float max_load_factor = deserialize_value<float>(deserializer, istream);
+        const slz_size_type nb_sparse_buckets = deserialize_value<slz_size_type>(deserializer, istream);
         
         this->max_load_factor(max_load_factor);
         
@@ -1935,12 +1935,12 @@ private:
             reserve(static_cast<size_type>(nb_elements));
             
             for(slz_size_type ibucket = 0; ibucket < nb_sparse_buckets; ibucket++) {
-                const slz_size_type sparse_bucket_size = deserializer.Deserializer::template operator()<slz_size_type>(istream);
+                const slz_size_type sparse_bucket_size = deserialize_value<slz_size_type>(deserializer, istream);
                 for(slz_size_type ivalue = 0; ivalue < sparse_bucket_size; ivalue++) {
-                    const slz_size_type index_of_value = deserializer.Deserializer::template operator()<slz_size_type>(istream);
+                    const slz_size_type index_of_value = deserialize_value<slz_size_type>(deserializer, istream);
                     (void) index_of_value;
                     
-                    insert(deserializer.Deserializer::template operator()<value_type>(istream));
+                    insert(deserialize_value<value_type>(deserializer, istream));
                 }
             }
         }
@@ -1975,21 +1975,31 @@ private:
         m_sparse_buckets.reserve(static_cast<size_type>(nb_sparse_buckets));
         
         for(slz_size_type ibucket = 0; ibucket < nb_sparse_buckets; ibucket++) {
-            const slz_size_type sparse_bucket_size = deserializer.Deserializer::template operator()<slz_size_type>(istream);
+            const slz_size_type sparse_bucket_size = deserialize_value<slz_size_type>(deserializer, istream);
             m_sparse_buckets.emplace_back(static_cast<typename sparse_array::size_type>(sparse_bucket_size), 
                                           static_cast<Allocator&>(*this));
             
             // TODO Could be slightly optimized
             for(slz_size_type ivalue = 0; ivalue < sparse_bucket_size; ivalue++) {
-                const slz_size_type index_of_value = deserializer.Deserializer::template operator()<slz_size_type>(istream);
+                const slz_size_type index_of_value = deserialize_value<slz_size_type>(deserializer, istream);
                 m_sparse_buckets[ibucket].set(static_cast<Allocator&>(*this), 
                                               static_cast<typename sparse_array::size_type>(index_of_value),
-                                              deserializer.Deserializer::template operator()<value_type>(istream));
+                                              deserialize_value<value_type>(deserializer, istream));
             }
         }
         
         m_sparse_buckets.back().set_as_last();
         m_first_or_empty_sparse_bucket = m_sparse_buckets.data();
+    }
+    
+    template<class T, class Deserializer, class InputStream>
+    T deserialize_value(const Deserializer& deserializer, InputStream& istream) {
+        // MSVC < 2017 is not conformant, circumvent the problem by remove the template keyword
+#if defined (_MSC_VER) && _MSC_VER < 1910
+        return deserializer.Deserializer::operator()<T>(istream);
+#else        
+        return deserializer.Deserializer::template operator()<T>(istream);
+#endif        
     }
     
 public:    
