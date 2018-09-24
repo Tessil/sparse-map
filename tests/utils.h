@@ -314,6 +314,13 @@ inline HMap utils::get_filled_hash_map(std::size_t nb_elements) {
 }
 
 
+template<class T>
+struct is_pair: std::false_type {
+};
+
+template <class T1, class T2>
+struct is_pair<std::pair<T1, T2>>: std::true_type {
+};
 
 /**
  * serializer helper to test serialize(...) and deserialize(...) functions
@@ -332,6 +339,12 @@ public:
     
     
 private:   
+    template<typename T, typename U, typename OutputStream>
+    void serialize(const std::pair<T, U>& val, OutputStream& ostream) const {
+        serialize(val.first, ostream);
+        serialize(val.second, ostream);
+    }
+    
     template<typename OutputStream>
     void serialize(const std::string& val, OutputStream& ostream) const {
         serialize(static_cast<std::uint64_t>(val.size()), ostream);
@@ -357,8 +370,15 @@ private:
     
     
     template<class T, class InputStream, 
+             typename std::enable_if<is_pair<T>::value>::type* = nullptr>
+    T deserialize(InputStream& istream) const {
+        auto first = deserialize<typename T::first_type>(istream);
+        return std::make_pair(std::move(first), deserialize<typename T::second_type>(istream));
+    }
+    
+    template<class T, class InputStream, 
              typename std::enable_if<std::is_same<std::string, T>::value>::type* = nullptr>
-    std::string deserialize(InputStream& istream) const {
+    T deserialize(InputStream& istream) const {
         const std::uint64_t str_size = deserialize<std::uint64_t>(istream);
         
         std::vector<char> chars(str_size);
@@ -375,7 +395,7 @@ private:
     
     template<class T, class InputStream, 
              typename std::enable_if<std::is_same<std::uint64_t, T>::value>::type* = nullptr>
-    std::uint64_t deserialize(InputStream& istream) const {
+    T deserialize(InputStream& istream) const {
         std::uint64_t val;
         istream.read(reinterpret_cast<char*>(&val), sizeof(val));
         
@@ -384,7 +404,7 @@ private:
     
     template<class T, class InputStream, 
              typename std::enable_if<std::is_same<float, T>::value>::type* = nullptr>
-    float deserialize(InputStream& istream) const {
+    T deserialize(InputStream& istream) const {
         float val;
         istream.read(reinterpret_cast<char*>(&val), sizeof(val));
         

@@ -1897,27 +1897,14 @@ private:
             serializer(sparse_bucket_size, ostream);
             
             size_type value_offset = 0;
-            for(const auto& value: bucket) {
+            for(const value_type& value: bucket) {
                 const slz_size_type value_index = bucket.offset_to_index(value_offset);
                 serializer(value_index, ostream);
-                serialize_value(serializer, ostream, value);
+                serializer(value, ostream);
                 
                 value_offset++;
             }
         }
-    }
-    
-    template<class Serializer, class OutputStream, 
-             class U = ValueSelect, typename std::enable_if<!has_mapped_type<U>::value>::type* = nullptr>
-    void serialize_value(const Serializer& serializer, OutputStream& ostream, const value_type& value) {
-        serializer(value, ostream);
-    }
-    
-    template<class Serializer, class OutputStream, 
-             class U = ValueSelect, typename std::enable_if<has_mapped_type<U>::value>::type* = nullptr>
-    void serialize_value(const Serializer& serializer, OutputStream& ostream, const value_type& value) {
-        serializer(value.first, ostream);
-        serializer(value.second, ostream);
     }
     
     template<class Deserializer, class InputStream>
@@ -1953,7 +1940,7 @@ private:
                     const slz_size_type index_of_value = deserializer.Deserializer::template operator()<slz_size_type>(istream);
                     (void) index_of_value;
                     
-                    insert(deserialize_value(deserializer, istream));
+                    insert(deserializer.Deserializer::template operator()<value_type>(istream));
                 }
             }
         }
@@ -1997,26 +1984,12 @@ private:
                 const slz_size_type index_of_value = deserializer.Deserializer::template operator()<slz_size_type>(istream);
                 m_sparse_buckets[ibucket].set(static_cast<Allocator&>(*this), 
                                               static_cast<typename sparse_array::size_type>(index_of_value),
-                                              deserialize_value(deserializer, istream));
+                                              deserializer.Deserializer::template operator()<value_type>(istream));
             }
         }
         
         m_sparse_buckets.back().set_as_last();
         m_first_or_empty_sparse_bucket = m_sparse_buckets.data();
-    }
-    
-    template<class Deserializer, class InputStream, 
-             class U = ValueSelect, typename std::enable_if<!has_mapped_type<U>::value>::type* = nullptr>
-    value_type deserialize_value(const Deserializer& deserializer, InputStream& istream) {
-        return deserializer.Deserializer::template operator()<value_type>(istream);
-    }
-    
-    template<class Deserializer, class InputStream,
-             class U = ValueSelect, typename std::enable_if<has_mapped_type<U>::value>::type* = nullptr>
-    value_type deserialize_value(const Deserializer& deserializer, InputStream& istream) {
-        key_type key = deserializer.Deserializer::template operator()<key_type>(istream);
-        return std::make_pair(std::move(key), 
-                              deserializer.Deserializer::template operator()<typename ValueSelect::value_type>(istream));
     }
     
 public:    
