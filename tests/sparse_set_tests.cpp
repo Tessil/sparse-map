@@ -141,33 +141,10 @@ BOOST_AUTO_TEST_CASE(test_insert_pointer) {
 /**
  * serialize and deserialize
  */
-BOOST_AUTO_TEST_CASE(test_serialize_desearialize_empty_set) {
-    // serialize empty set; deserialize in new set; check equal.
-    // for deserialization, test it with and without hash compatibility..
-    std::stringstream buffer;
-    buffer.exceptions(buffer.badbit | buffer.failbit | buffer.eofbit);
-    
-    tsl::sparse_set<move_only_test> empty_set(0);
-    empty_set.serialize(serializer(), buffer);
-    
-    
-    
-    
-    auto empty_set_deserialized = decltype(empty_set)::deserialize(serializer(), buffer, true);
-    BOOST_CHECK(empty_set_deserialized == empty_set);
-    
-    buffer.seekg(0);
-    empty_set_deserialized = decltype(empty_set)::deserialize(serializer(), buffer, false);
-    BOOST_CHECK(empty_set_deserialized == empty_set);
-}
-
-BOOST_AUTO_TEST_CASE(test_serialize_desearialize_set) {
+BOOST_AUTO_TEST_CASE(test_serialize_desearialize) {
     // insert x values; delete some values; serialize set; deserialize in new set; check equal.
-    // for deserialization, test it with and without hash compatibility..
+    // for deserialization, test it with and without hash compatibility.
     const std::size_t nb_values = 1000;
-    
-    std::stringstream buffer;
-    buffer.exceptions(buffer.badbit | buffer.failbit | buffer.eofbit);
     
     
     tsl::sparse_set<move_only_test> set;
@@ -179,52 +156,19 @@ BOOST_AUTO_TEST_CASE(test_serialize_desearialize_set) {
         set.erase(utils::get_key<move_only_test>(i));
     }
     BOOST_CHECK_EQUAL(set.size(), nb_values);
-    
-    set.serialize(serializer(), buffer);
-    
-    
-    
-    
-    auto set_deserialized = decltype(set)::deserialize(serializer(), buffer, true);
-    BOOST_CHECK(set_deserialized == set);
-    
-    buffer.seekg(0);
-    set_deserialized = decltype(set)::deserialize(serializer(), buffer, false);
-    BOOST_CHECK(set_deserialized == set);
-}
 
-BOOST_AUTO_TEST_CASE(test_serialize_desearialize_set_with_different_hash) {
-    // insert x values; serialize set; deserialize in new set which has a different hash; check equal
-    struct hash_str_with_size {
-        std::size_t operator()(const move_only_test& v) const {
-            return v.value().size();
-        }
-    };
     
     
-    const std::size_t nb_values = 1000;
-    
-    std::stringstream buffer;
-    buffer.exceptions(buffer.badbit | buffer.failbit | buffer.eofbit);
-    
-    
-    tsl::sparse_set<move_only_test> set;
-    for(std::size_t i = 0; i < nb_values; i++) {
-        set.insert(utils::get_key<move_only_test>(i));
-    }
-    BOOST_CHECK_EQUAL(set.size(), nb_values);
-    
-    set.serialize(serializer(), buffer);
-    
-    
-    
-    
-    auto set_deserialized = tsl::sparse_set<move_only_test, hash_str_with_size>::deserialize(serializer(), buffer);
-    
-    BOOST_CHECK_EQUAL(set_deserialized.size(), set.size());
-    for(const auto& val: set) {
-        BOOST_CHECK(set_deserialized.find(val) != set_deserialized.end());
-    }
+    serializer serial;
+    set.serialize(serial);
+
+    deserializer dserial(serial.str());
+    auto set_deserialized = decltype(set)::deserialize(dserial, true);
+    BOOST_CHECK(set == set_deserialized);
+
+    deserializer dserial2(serial.str());
+    set_deserialized = decltype(set)::deserialize(dserial2, false);
+    BOOST_CHECK(set_deserialized == set);
 }
 
 

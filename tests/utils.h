@@ -151,7 +151,7 @@ public:
         }
     }
     
-    std::string value() const {
+    const std::string& value() const {
         return *m_value;
     }
     
@@ -326,90 +326,95 @@ struct is_pair<std::pair<T1, T2>>: std::true_type {
  * serializer helper to test serialize(...) and deserialize(...) functions
  */
 class serializer {
-public:    
-    template<typename T, typename OutputStream>
-    void operator()(const T& val, OutputStream& ostream) const {
-        serialize(val, ostream);
+public:
+    serializer() {
+        m_ostream.exceptions(m_ostream.badbit | m_ostream.failbit);
     }
     
-    template<typename T, typename InputStream>
-    T operator()(InputStream& istream) const {
-        return deserialize<T>(istream);
+    template<class T>
+    void operator()(const T& val) {
+        serialize_impl(val);
     }
     
-    
-private:   
-    template<typename T, typename U, typename OutputStream>
-    void serialize(const std::pair<T, U>& val, OutputStream& ostream) const {
-        serialize(val.first, ostream);
-        serialize(val.second, ostream);
+    std::string str() const {
+        return m_ostream.str();
     }
     
-    template<typename OutputStream>
-    void serialize(const std::string& val, OutputStream& ostream) const {
-        serialize(static_cast<std::uint64_t>(val.size()), ostream);
-        ostream.write(val.data(), val.size());
+private:
+    template<typename T, typename U>
+    void serialize_impl(const std::pair<T, U>& val) {
+        serialize_impl(val.first);
+        serialize_impl(val.second);
     }
     
-    template<typename OutputStream>
-    void serialize(const move_only_test& val, OutputStream& ostream) const {
-        serialize(val.value(), ostream);
+    void serialize_impl(const std::string& val) {
+        serialize_impl(boost::numeric_cast<std::uint64_t>(val.size()));
+        m_ostream.write(val.data(), val.size());
+    }
+
+    void serialize_impl(const move_only_test& val) {
+        serialize_impl(val.value());
+    }
+
+    template<class T, 
+             typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    void serialize_impl(const T& val) {
+        m_ostream.write(reinterpret_cast<const char*>(&val), sizeof(val));
     }
     
-    template<typename OutputStream>
-    void serialize(const std::uint64_t& val, OutputStream& ostream) const {
-        ostream.write(reinterpret_cast<const char*>(&val), sizeof(val));
+private:
+    std::stringstream m_ostream;
+};
+
+class deserializer {
+public:
+    deserializer(const std::string& init_str = ""): m_istream(init_str) {
+        m_istream.exceptions(m_istream.badbit | m_istream.failbit | m_istream.eofbit);
     }
     
-    template<typename OutputStream>
-    void serialize(const float& val, OutputStream& ostream) const {
-        ostream.write(reinterpret_cast<const char*>(&val), sizeof(val));
+    template<class T>
+    T operator()() {
+        return deserialize_impl<T>();
     }
-    
-    
-    
-    
-    template<class T, class InputStream, 
+
+private:
+    template<class T, 
              typename std::enable_if<is_pair<T>::value>::type* = nullptr>
-    T deserialize(InputStream& istream) const {
-        auto first = deserialize<typename T::first_type>(istream);
-        return std::make_pair(std::move(first), deserialize<typename T::second_type>(istream));
+    T deserialize_impl() {
+        auto first = deserialize_impl<typename T::first_type>();
+        return std::make_pair(std::move(first), deserialize_impl<typename T::second_type>());
     }
     
-    template<class T, class InputStream, 
+    template<class T, 
              typename std::enable_if<std::is_same<std::string, T>::value>::type* = nullptr>
-    T deserialize(InputStream& istream) const {
-        const std::size_t str_size = static_cast<std::size_t>(deserialize<std::uint64_t>(istream));
+    T deserialize_impl() {
+        const std::size_t str_size = boost::numeric_cast<std::size_t>(deserialize_impl<std::uint64_t>());
         
+        // TODO std::string::data() return a const pointer pre-C++17. Avoid the inefficient double allocation.
         std::vector<char> chars(str_size);
-        istream.read(chars.data(), str_size);
+        m_istream.read(chars.data(), str_size);
         
         return std::string(chars.data(), chars.size());
     }
-    
-    template<class T, class InputStream, 
+
+    template<class T, 
              typename std::enable_if<std::is_same<move_only_test, T>::value>::type* = nullptr>
-    move_only_test deserialize(InputStream& istream) const {
-        return move_only_test(deserialize<std::string>(istream));
+    move_only_test deserialize_impl() {
+        return move_only_test(deserialize_impl<std::string>());
     }
-    
-    template<class T, class InputStream, 
-             typename std::enable_if<std::is_same<std::uint64_t, T>::value>::type* = nullptr>
-    T deserialize(InputStream& istream) const {
-        std::uint64_t val;
-        istream.read(reinterpret_cast<char*>(&val), sizeof(val));
-        
+
+    template<class T, 
+             typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    T deserialize_impl() {
+        T val;
+        m_istream.read(reinterpret_cast<char*>(&val), sizeof(val));
+
         return val;
     }
     
-    template<class T, class InputStream, 
-             typename std::enable_if<std::is_same<float, T>::value>::type* = nullptr>
-    T deserialize(InputStream& istream) const {
-        float val;
-        istream.read(reinterpret_cast<char*>(&val), sizeof(val));
-        
-        return val;
-    }
+private:
+    std::stringstream m_istream;
 };
+
 
 #endif

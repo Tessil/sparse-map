@@ -501,21 +501,19 @@ public:
     iterator mutable_iterator(const_iterator pos) {
         return m_ht.mutable_iterator(pos);
     }
-    
-    template<class Serializer, class OutputStream>
-    void serialize(const Serializer& serializer, OutputStream& ostream) {
-        m_ht.serialize(serializer, ostream);
+
+    template<class Serializer>
+    void serialize(Serializer& serializer) const {
+        m_ht.serialize(serializer);
     }
     
-    template<class Deserializer, class InputStream>
-    static sparse_set deserialize(const Deserializer& deserializer, InputStream& istream, bool hash_compatible = false) {
+    template<class Deserializer>
+    static sparse_set deserialize(Deserializer& deserializer, bool hash_compatible = false) {
         sparse_set set(0);
-        set.m_ht.deserialize(deserializer, istream, hash_compatible);
-        
+        set.m_ht.deserialize(deserializer, hash_compatible);
+
         return set;
     }
-    
-    
     
     friend bool operator==(const sparse_set& lhs, const sparse_set& rhs) {
         if(lhs.size() != rhs.size()) {

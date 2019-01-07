@@ -637,21 +637,19 @@ public:
     iterator mutable_iterator(const_iterator pos) {
         return m_ht.mutable_iterator(pos);
     }
-    
-    template<class Serializer, class OutputStream>
-    void serialize(const Serializer& serializer, OutputStream& writer) {
-        m_ht.serialize(serializer, writer);
+
+    template<class Serializer>
+    void serialize(Serializer& serializer) const {
+        m_ht.serialize(serializer);
     }
     
-    template<class Deserializer, class InputStream>
-    static sparse_map deserialize(const Deserializer& deserializer, InputStream& istream, bool hash_compatible = false) {
+    template<class Deserializer>
+    static sparse_map deserialize(Deserializer& deserializer, bool hash_compatible = false) {
         sparse_map map(0);
-        map.m_ht.deserialize(deserializer, istream, hash_compatible);
-        
+        map.m_ht.deserialize(deserializer, hash_compatible);
+
         return map;
     }
-    
-    
     
     friend bool operator==(const sparse_map& lhs, const sparse_map& rhs) {
         if(lhs.size() != rhs.size()) {

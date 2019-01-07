@@ -835,33 +835,28 @@ BOOST_AUTO_TEST_CASE(test_swap) {
 /**
  * serialize and deserialize
  */
-BOOST_AUTO_TEST_CASE(test_serialize_desearialize_empty_map) {
+BOOST_AUTO_TEST_CASE(test_serialize_desearialize_empty) {
     // serialize empty map; deserialize in new map; check equal.
     // for deserialization, test it with and without hash compatibility.
-    std::stringstream buffer;
-    buffer.exceptions(buffer.badbit | buffer.failbit | buffer.eofbit);
-    
-    tsl::sparse_map<move_only_test, std::string> empty_map(0);
-    empty_map.serialize(serializer(), buffer);
+    const tsl::sparse_map<std::string, move_only_test> empty_map(0);
     
     
-    
-    
-    auto empty_map_deserialized = decltype(empty_map)::deserialize(serializer(), buffer, true);
+    serializer serial;
+    empty_map.serialize(serial);
+
+    deserializer dserial(serial.str());
+    auto empty_map_deserialized = decltype(empty_map)::deserialize(dserial, true);
     BOOST_CHECK(empty_map_deserialized == empty_map);
-    
-    buffer.seekg(0);
-    empty_map_deserialized = decltype(empty_map)::deserialize(serializer(), buffer, false);
+
+    deserializer dserial2(serial.str());
+    empty_map_deserialized = decltype(empty_map)::deserialize(dserial2, false);
     BOOST_CHECK(empty_map_deserialized == empty_map);
 }
 
-BOOST_AUTO_TEST_CASE(test_serialize_desearialize_map) {
+BOOST_AUTO_TEST_CASE(test_serialize_desearialize) {
     // insert x values; delete some values; serialize map; deserialize in new map; check equal.
     // for deserialization, test it with and without hash compatibility.
     const std::size_t nb_values = 1000;
-    
-    std::stringstream buffer;
-    buffer.exceptions(buffer.badbit | buffer.failbit | buffer.eofbit);
     
     
     tsl::sparse_map<std::string, move_only_test> map;
@@ -873,33 +868,31 @@ BOOST_AUTO_TEST_CASE(test_serialize_desearialize_map) {
         map.erase(utils::get_key<std::string>(i));
     }
     BOOST_CHECK_EQUAL(map.size(), nb_values);
-    
-    map.serialize(serializer(), buffer);
-    
+
     
     
-    
-    auto map_deserialized = decltype(map)::deserialize(serializer(), buffer, true);
-    BOOST_CHECK(map_deserialized == map);
-    
-    buffer.seekg(0);
-    map_deserialized = decltype(map)::deserialize(serializer(), buffer, false);
+    serializer serial;
+    map.serialize(serial);
+
+    deserializer dserial(serial.str());
+    auto map_deserialized = decltype(map)::deserialize(dserial, true);
+    BOOST_CHECK(map == map_deserialized);
+
+    deserializer dserial2(serial.str());
+    map_deserialized = decltype(map)::deserialize(dserial2, false);
     BOOST_CHECK(map_deserialized == map);
 }
 
-BOOST_AUTO_TEST_CASE(test_serialize_desearialize_map_with_different_hash) {
+BOOST_AUTO_TEST_CASE(test_serialize_desearialize_with_different_hash) {
     // insert x values; serialize map; deserialize in new map which has a different hash; check equal
-    struct hash_str_with_size {
+    struct hash_str_diff {
         std::size_t operator()(const std::string& str) const {
-            return str.size();
+            return std::hash<std::string>()(str) + 123;
         }
     };
     
     
     const std::size_t nb_values = 1000;
-    
-    std::stringstream buffer;
-    buffer.exceptions(buffer.badbit | buffer.failbit | buffer.eofbit);
     
     
     tsl::sparse_map<std::string, move_only_test> map;
@@ -907,14 +900,14 @@ BOOST_AUTO_TEST_CASE(test_serialize_desearialize_map_with_different_hash) {
         map.insert({utils::get_key<std::string>(i), utils::get_value<move_only_test>(i)});
     }
     BOOST_CHECK_EQUAL(map.size(), nb_values);
-    
-    map.serialize(serializer(), buffer);
-    
+
     
     
-    
-    auto map_deserialized = 
-            tsl::sparse_map<std::string, move_only_test, hash_str_with_size>::deserialize(serializer(), buffer);
+    serializer serial;
+    map.serialize(serial);
+
+    deserializer dserial(serial.str());
+    auto map_deserialized = tsl::sparse_map<std::string, move_only_test, hash_str_diff>::deserialize(dserial, false);
     
     BOOST_CHECK_EQUAL(map_deserialized.size(), map.size());
     for(const auto& val: map) {
