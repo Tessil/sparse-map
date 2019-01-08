@@ -562,30 +562,6 @@ public:
         swap(m_last_array, other.m_last_array);
     }
     
-    //TODO optimize
-    size_type offset_to_index(size_type offset) const noexcept {
-        tsl_sh_assert(offset < m_nb_elements);
-        
-        bitmap_type bitmap_vals = m_bitmap_vals;
-        size_type index = 0;
-        size_type nb_ones = 0;
-        
-        while(bitmap_vals != 0) {
-            if((bitmap_vals & 0x1) == 1) {
-                if(nb_ones == offset) {
-                    break;
-                }
-                
-                nb_ones++;
-            }
-            
-            index++;
-            bitmap_vals = bitmap_vals >> 1;
-        }
-        
-        return index;
-    }
-    
     static iterator mutable_iterator(const_iterator pos) {
         return const_cast<iterator>(pos);
     }
@@ -693,6 +669,30 @@ private:
     size_type index_to_offset(size_type index) const noexcept {
         tsl_sh_assert(index < BITMAP_NB_BITS);
         return popcount(m_bitmap_vals & ((bitmap_type(1) << index) - bitmap_type(1)));
+    }
+    
+    //TODO optimize
+    size_type offset_to_index(size_type offset) const noexcept {
+        tsl_sh_assert(offset < m_nb_elements);
+        
+        bitmap_type bitmap_vals = m_bitmap_vals;
+        size_type index = 0;
+        size_type nb_ones = 0;
+        
+        while(bitmap_vals != 0) {
+            if((bitmap_vals & 0x1) == 1) {
+                if(nb_ones == offset) {
+                    break;
+                }
+                
+                nb_ones++;
+            }
+            
+            index++;
+            bitmap_vals = bitmap_vals >> 1;
+        }
+        
+        return index;
     }
     
     size_type next_capacity() const noexcept {
@@ -2012,6 +2012,7 @@ private:
         const slz_size_type nb_deleted_buckets = deserialize_value<slz_size_type>(deserializer);
         const float max_load_factor = deserialize_value<float>(deserializer);
         
+        
         this->max_load_factor(max_load_factor);
         
         if(bucket_count_ds == 0) {
@@ -2033,6 +2034,10 @@ private:
             // GrowthPolicy should not modify the bucket count we got from deserialization
             if(m_bucket_count != bucket_count_ds) {
                 throw std::runtime_error("The GrowthPolicy is not the same even though hash_compatible is true.");
+            }
+            
+            if(nb_sparse_buckets != sparse_array::sparse_ibucket(tsl::detail_sparse_hash::round_up_to_power_of_two(m_bucket_count))) {
+                throw std::runtime_error("Deserialized nb_sparse_buckets is invalid.");
             }
             
             

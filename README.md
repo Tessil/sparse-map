@@ -15,6 +15,7 @@ A **benchmark** of `tsl::sparse_map` against other hash maps may be found [here]
 - Support for heterogeneous lookups allowing the usage of `find` with a type different than `Key` (e.g. if you have a map that uses `std::unique_ptr<foo>` as key, you can use a `foo*` or a `std::uintptr_t` as key parameter to `find` without constructing a `std::unique_ptr<foo>`, see [example](#heterogeneous-lookups)).
 - No need to reserve any sentinel value from the keys.
 - If the hash is known before a lookup, it is possible to pass it as parameter to speed-up the lookup (see `precalculated_hash` parameter in [API](https://tessil.github.io/sparse-map/classtsl_1_1sparse__map.html)).
+- Support for efficient serialization and deserialization (see [example](#serialization) and the `serialize/deserialize` methods in the [API](https://tessil.github.io/sparse-map/classtsl_1_1sparse__map.html) for details).
 - Possibility to control the balance between insertion speed and memory usage with the `Sparsity` template parameter. A high sparsity means less memory but longer insertion times, and vice-versa for low sparsity. The default medium sparsity offers a good compromise (see [API](https://tessil.github.io/sparse-map/classtsl_1_1sparse__map.html#details) for details). For reference, with simple 64 bits integers as keys and values, a low sparsity offers ~15% faster insertions times but uses ~12% more memory. Nothing change regarding lookup speed.
 - API closely similar to `std::unordered_map` and `std::unordered_set`.
 
@@ -259,6 +260,127 @@ int main() {
     // 2004
     std::cout << map2.at(4) << std::endl;
 }
+```
+
+#### Serialization
+
+The library provides an efficient way to serialize and deserialize a map or a set so that it can be saved to a file or send through the network.
+To do so, it requires the user to provide a function object for both serialization and deserialization.
+
+```c++
+struct serializer {
+    // Must support the following types for U: std::uint64_t, float 
+    // and std::pair<Key, T> if a map is used or Key for a set.
+    void operator()(const U& value);
+};
+```
+
+```c++
+struct deserializer {
+    // Must support the following types for U: std::uint64_t, float 
+    // and std::pair<Key, T> if a map is used or Key for a set.
+    U operator()();
+};
+```
+
+Note that the implementation leaves binary compatibilty (endianness, float binary representation, size of int, ...) of the types it serializes/deserializes in the hands of the provided function objects if compatibilty is required.
+
+More details regarding the `serialize` and `deserialize` methods can be found in the [API](https://tessil.github.io/sparse-map/classtsl_1_1sparse__map.html).
+
+```c++
+#include <cassert>
+#include <cstdint>
+#include <fstream>
+#include <type_traits>
+#include <tsl/sparse_map.h>
+
+
+class serializer {
+public:
+    serializer(const char* file_name) {
+        m_ostream.exceptions(m_ostream.badbit | m_ostream.failbit);
+        m_ostream.open(file_name);
+    }
+    
+    template<class T,
+             typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    void operator()(const T& value) {
+        m_ostream.write(reinterpret_cast<const char*>(&value), sizeof(T));
+    }
+    
+    void operator()(const std::pair<std::int64_t, std::int64_t>& value) {
+        (*this)(value.first);
+        (*this)(value.second);
+    }
+
+private:
+    std::ofstream m_ostream;
+};
+
+class deserializer {
+public:
+    deserializer(const char* file_name) {
+        m_istream.exceptions(m_istream.badbit | m_istream.failbit | m_istream.eofbit);
+        m_istream.open(file_name);
+    }
+    
+    template<class T>
+    T operator()() {
+        T value;
+        deserialize(value);
+        
+        return value;
+    }
+    
+private:
+    template<class T,
+             typename std::enable_if<std::is_arithmetic<T>::value>::type* = nullptr>
+    void deserialize(T& value) {
+        m_istream.read(reinterpret_cast<char*>(&value), sizeof(T));
+    }
+    
+    void deserialize(std::pair<std::int64_t, std::int64_t>& value) {
+        deserialize(value.first);
+        deserialize(value.second);
+    }
+
+private:
+    std::ifstream m_istream;
+};
+
+
+int main() {
+    const tsl::sparse_map<std::int64_t, std::int64_t> map = {{1, -1}, {2, -2}, {3, -3}, {4, -4}};
+    
+    
+    const char* file_name = "sparse_map.data";
+    {
+        serializer serial(file_name);
+        map.serialize(serial);
+    }
+    
+    {
+        deserializer dserial(file_name);
+        auto map_deserialized = tsl::sparse_map<std::int64_t, std::int64_t>::deserialize(dserial);
+        
+        assert(map == map_deserialized);
+    }
+    
+    {
+        deserializer dserial(file_name);
+        
+        /**
+         * If the serialized and deserialized map are hash compatibles (see conditions in API), 
+         * setting the argument to true speed-up the deserialization process as we don't have 
+         * to recalculate the hash of each key. We also know how much space each bucket needs.
+         */
+        const bool hash_compatible = true;
+        auto map_deserialized = 
+            tsl::sparse_map<std::int64_t, std::int64_t>::deserialize(dserial, hash_compatible);
+        
+        assert(map == map_deserialized);
+    }
+} 
 ```
 
 ### License
