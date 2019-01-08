@@ -373,8 +373,8 @@ public:
     {
     }
     
-    sparse_array(size_type capacity, Allocator& alloc) noexcept: m_values(nullptr), m_bitmap_vals(0), m_bitmap_deleted_vals(0), 
-                                                                 m_nb_elements(0), m_capacity(capacity), m_last_array(false)
+    sparse_array(size_type capacity, Allocator& alloc): m_values(nullptr), m_bitmap_vals(0), m_bitmap_deleted_vals(0), 
+                                                        m_nb_elements(0), m_capacity(capacity), m_last_array(false)
     {
         if(m_capacity > 0) {
             m_values = alloc.allocate(m_capacity);
