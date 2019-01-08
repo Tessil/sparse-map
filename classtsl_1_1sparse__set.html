@@ -45,6 +45,7 @@ $(function() {
 <a href="#nested-classes">Classes</a> &#124;
 <a href="#pub-types">Public Types</a> &#124;
 <a href="#pub-methods">Public Member Functions</a> &#124;
+<a href="#pub-static-methods">Static Public Member Functions</a> &#124;
 <a href="#friends">Friends</a> &#124;
 <a href="classtsl_1_1sparse__set-members.html">List of all members</a>  </div>
   <div class="headertitle">
@@ -241,6 +242,15 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:a8ad2ca79e832b49ad39e77947de3de0f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a586f1bfad77eb6a7a96c0e264c9ca250"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classtsl_1_1sparse__set.html#a27cd3ae31de1ba6d0e63a9f36f8b2a14">iterator</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classtsl_1_1sparse__set.html#a586f1bfad77eb6a7a96c0e264c9ca250">mutable_iterator</a> (<a class="el" href="classtsl_1_1sparse__set.html#a4173ab24031bacf64a1d84b57eb56ebf">const_iterator</a> pos)</td></tr>
 <tr class="separator:a586f1bfad77eb6a7a96c0e264c9ca250"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7d88a3fa60f7b6bf53414f7d286e5fc8"><td class="memTemplParams" colspan="2">template&lt;class Serializer &gt; </td></tr>
+<tr class="memitem:a7d88a3fa60f7b6bf53414f7d286e5fc8"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classtsl_1_1sparse__set.html#a7d88a3fa60f7b6bf53414f7d286e5fc8">serialize</a> (Serializer &amp;serializer) const</td></tr>
+<tr class="separator:a7d88a3fa60f7b6bf53414f7d286e5fc8"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-static-methods"></a>
+Static Public Member Functions</h2></td></tr>
+<tr class="memitem:afd27567999c072bc904f0519d13b34c8"><td class="memTemplParams" colspan="2">template&lt;class Deserializer &gt; </td></tr>
+<tr class="memitem:afd27567999c072bc904f0519d13b34c8"><td class="memTemplItemLeft" align="right" valign="top">static <a class="el" href="classtsl_1_1sparse__set.html">sparse_set</a>&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classtsl_1_1sparse__set.html#afd27567999c072bc904f0519d13b34c8">deserialize</a> (Deserializer &amp;deserializer, bool hash_compatible=false)</td></tr>
+<tr class="separator:afd27567999c072bc904f0519d13b34c8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="friends"></a>
 Friends</h2></td></tr>
@@ -1289,6 +1299,53 @@ template&lt;class K , class KE  = KeyEqual, typename std::enable_if&lt; has_is_t
 <p></p>
 <p>This overload only participates in the overload resolution if the typedef <code>KeyEqual::is_transparent</code> exists. If so, <code>K</code> must be hashable and comparable to <code>Key</code>.</p>
 <p>Use the hash value <code>precalculated_hash</code> instead of hashing the key. The hash value should be the same as <code><a class="el" href="classtsl_1_1sparse__set.html#a7e2cf93cf5a29e18163079713ef2c233">hash_function()</a>(key)</code>, otherwise the behaviour is undefined. Useful to speed-up the lookup if you already have the hash. </p>
+
+</div>
+</div>
+<a id="afd27567999c072bc904f0519d13b34c8"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#afd27567999c072bc904f0519d13b34c8">&#9670;&nbsp;</a></span>deserialize()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;class Key , class Hash  = std::hash&lt;Key&gt;, class KeyEqual  = std::equal_to&lt;Key&gt;, class Allocator  = std::allocator&lt;Key&gt;, class GrowthPolicy  = tsl::sh::power_of_two_growth_policy&lt;2&gt;, tsl::sh::exception_safety ExceptionSafety = tsl::sh::exception_safety::basic, tsl::sh::sparsity Sparsity = tsl::sh::sparsity::medium&gt; </div>
+<div class="memtemplate">
+template&lt;class Deserializer &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static <a class="el" href="classtsl_1_1sparse__set.html">sparse_set</a> <a class="el" href="classtsl_1_1sparse__set.html">tsl::sparse_set</a>&lt; Key, Hash, KeyEqual, Allocator, GrowthPolicy, ExceptionSafety, Sparsity &gt;::deserialize </td>
+          <td>(</td>
+          <td class="paramtype">Deserializer &amp;&#160;</td>
+          <td class="paramname"><em>deserializer</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>hash_compatible</em> = <code>false</code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<p>Deserialize a previouly serialized set through the <code>deserializer</code> parameter.</p>
+<p>The <code>deserializer</code> parameter must be a function object that supports the following calls:</p><ul>
+<li><code>template&lt;typename U&gt; U operator()();</code> where the types <code>std::uint64_t</code>, <code>float</code> and <code>Key</code> must be supported for U.</li>
+</ul>
+<p>If the deserialized hash set type is hash compatible with the serialized set, the deserialization process can be sped up by setting <code>hash_compatible</code> to true. To be hash compatible, the Hash, KeyEqual and GrowthPolicy must behave the same way than the ones used on the serialized set. The <code>std::size_t</code> must also be of the same size as the one on the platform used to serialize the set. If these criteria are not met, the behaviour is undefined with <code>hash_compatible</code> sets to true, .</p>
+<p>The behaviour is undefined if the type <code>Key</code> of the <code><a class="el" href="classtsl_1_1sparse__set.html">sparse_set</a></code> is not the same as the type used during serialization.</p>
+<p>The implementation leaves binary compatibilty (endianness, IEEE 754 for floats, size of int, ...) of the types it deserializes in the hands of the <code>Deserializer</code> function object if compatibilty is required. </p>
 
 </div>
 </div>
@@ -2786,6 +2843,41 @@ template&lt;class Key , class Hash  = std::hash&lt;Key&gt;, class KeyEqual  = st
   </tr>
 </table>
 </div><div class="memdoc">
+
+</div>
+</div>
+<a id="a7d88a3fa60f7b6bf53414f7d286e5fc8"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7d88a3fa60f7b6bf53414f7d286e5fc8">&#9670;&nbsp;</a></span>serialize()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;class Key , class Hash  = std::hash&lt;Key&gt;, class KeyEqual  = std::equal_to&lt;Key&gt;, class Allocator  = std::allocator&lt;Key&gt;, class GrowthPolicy  = tsl::sh::power_of_two_growth_policy&lt;2&gt;, tsl::sh::exception_safety ExceptionSafety = tsl::sh::exception_safety::basic, tsl::sh::sparsity Sparsity = tsl::sh::sparsity::medium&gt; </div>
+<div class="memtemplate">
+template&lt;class Serializer &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void <a class="el" href="classtsl_1_1sparse__set.html">tsl::sparse_set</a>&lt; Key, Hash, KeyEqual, Allocator, GrowthPolicy, ExceptionSafety, Sparsity &gt;::serialize </td>
+          <td>(</td>
+          <td class="paramtype">Serializer &amp;&#160;</td>
+          <td class="paramname"><em>serializer</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<p>Serialize the set through the <code>serializer</code> parameter.</p>
+<p>The <code>serializer</code> parameter must be a function object that supports the following call:</p><ul>
+<li><code>void operator()(const U&amp; value);</code> where the types <code>std::uint64_t</code>, <code>float</code> and <code>Key</code> must be supported for U.</li>
+</ul>
+<p>The implementation leaves binary compatibilty (endianness, IEEE 754 for floats, ...) of the types it serializes in the hands of the <code>Serializer</code> function object if compatibilty is required. </p>
 
 </div>
 </div>

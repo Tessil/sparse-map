@@ -232,6 +232,12 @@ Public Member Functions</h2></td></tr>
 <tr class="separator:aa57360fd26ef7afb084bc9f1c832b4d8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3e1d9ece194073d4b3dd919a9a57818a"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classtsl_1_1detail__sparse__hash_1_1sparse__hash.html#a7bdadb7941c03e0aa1df91787a3306f2">iterator</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classtsl_1_1detail__sparse__hash_1_1sparse__hash.html#a3e1d9ece194073d4b3dd919a9a57818a">mutable_iterator</a> (<a class="el" href="classtsl_1_1detail__sparse__hash_1_1sparse__hash.html#aee8a233535786e0a96080bb9b0696f07">const_iterator</a> pos)</td></tr>
 <tr class="separator:a3e1d9ece194073d4b3dd919a9a57818a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7eea52a9c2654d637f40d95153fec16a"><td class="memTemplParams" colspan="2">template&lt;class Serializer &gt; </td></tr>
+<tr class="memitem:a7eea52a9c2654d637f40d95153fec16a"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classtsl_1_1detail__sparse__hash_1_1sparse__hash.html#a7eea52a9c2654d637f40d95153fec16a">serialize</a> (Serializer &amp;serializer) const</td></tr>
+<tr class="separator:a7eea52a9c2654d637f40d95153fec16a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aee61be2d9e97314e00779dfb5264293e"><td class="memTemplParams" colspan="2">template&lt;class Deserializer &gt; </td></tr>
+<tr class="memitem:aee61be2d9e97314e00779dfb5264293e"><td class="memTemplItemLeft" align="right" valign="top">void&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="classtsl_1_1detail__sparse__hash_1_1sparse__hash.html#aee61be2d9e97314e00779dfb5264293e">deserialize</a> (Deserializer &amp;deserializer, bool hash_compatible)</td></tr>
+<tr class="separator:aee61be2d9e97314e00779dfb5264293e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a585ac70a49f3a54b1ee85fe65034593a"><td class="memItemLeft" align="right" valign="top">sparse_array *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classtsl_1_1detail__sparse__hash_1_1sparse__hash.html#a585ac70a49f3a54b1ee85fe65034593a">static_empty_sparse_bucket_ptr</a> ()</td></tr>
 <tr class="separator:a585ac70a49f3a54b1ee85fe65034593a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
@@ -241,6 +247,8 @@ Static Public Attributes</h2></td></tr>
 <tr class="separator:aca102c8a2a2f3750ce3815eb06da20ac"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a3879561e9e077cdac34017f4226ef58b"><td class="memItemLeft" align="right" valign="top">static constexpr float&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classtsl_1_1detail__sparse__hash_1_1sparse__hash.html#a3879561e9e077cdac34017f4226ef58b">DEFAULT_MAX_LOAD_FACTOR</a> = 0.5f</td></tr>
 <tr class="separator:a3879561e9e077cdac34017f4226ef58b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a5bcbecdb42e15b434225623e1b0ccba8"><td class="memItemLeft" align="right" valign="top">static const <a class="el" href="namespacetsl_1_1detail__sparse__hash.html#a9062a45890b1bd6d12b02dde80f0ee94">slz_size_type</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classtsl_1_1detail__sparse__hash_1_1sparse__hash.html#a5bcbecdb42e15b434225623e1b0ccba8">SERIALIZATION_PROTOCOL_VERSION</a> = 1</td></tr>
+<tr class="separator:a5bcbecdb42e15b434225623e1b0ccba8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><h3>template&lt;class ValueType, class KeySelect, class ValueSelect, class Hash, class KeyEqual, class Allocator, class GrowthPolicy, tsl::sh::exception_safety ExceptionSafety, tsl::sh::sparsity Sparsity, tsl::sh::probing Probing&gt;<br />
@@ -964,6 +972,46 @@ template&lt;class K &gt; </div>
           <td></td>
           <td>)</td>
           <td></td><td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+</div>
+</div>
+<a id="aee61be2d9e97314e00779dfb5264293e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aee61be2d9e97314e00779dfb5264293e">&#9670;&nbsp;</a></span>deserialize()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;class ValueType, class KeySelect, class ValueSelect, class Hash, class KeyEqual, class Allocator, class GrowthPolicy, tsl::sh::exception_safety ExceptionSafety, tsl::sh::sparsity Sparsity, tsl::sh::probing Probing&gt; </div>
+<div class="memtemplate">
+template&lt;class Deserializer &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void <a class="el" href="classtsl_1_1detail__sparse__hash_1_1sparse__hash.html">tsl::detail_sparse_hash::sparse_hash</a>&lt; ValueType, KeySelect, ValueSelect, Hash, KeyEqual, Allocator, GrowthPolicy, ExceptionSafety, Sparsity, Probing &gt;::deserialize </td>
+          <td>(</td>
+          <td class="paramtype">Deserializer &amp;&#160;</td>
+          <td class="paramname"><em>deserializer</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>hash_compatible</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
         </tr>
       </table>
   </td>
@@ -2154,6 +2202,36 @@ template&lt;class ValueType, class KeySelect, class ValueSelect, class Hash, cla
 
 </div>
 </div>
+<a id="a7eea52a9c2654d637f40d95153fec16a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7eea52a9c2654d637f40d95153fec16a">&#9670;&nbsp;</a></span>serialize()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;class ValueType, class KeySelect, class ValueSelect, class Hash, class KeyEqual, class Allocator, class GrowthPolicy, tsl::sh::exception_safety ExceptionSafety, tsl::sh::sparsity Sparsity, tsl::sh::probing Probing&gt; </div>
+<div class="memtemplate">
+template&lt;class Serializer &gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void <a class="el" href="classtsl_1_1detail__sparse__hash_1_1sparse__hash.html">tsl::detail_sparse_hash::sparse_hash</a>&lt; ValueType, KeySelect, ValueSelect, Hash, KeyEqual, Allocator, GrowthPolicy, ExceptionSafety, Sparsity, Probing &gt;::serialize </td>
+          <td>(</td>
+          <td class="paramtype">Serializer &amp;&#160;</td>
+          <td class="paramname"><em>serializer</em></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+</div>
+</div>
 <a id="aa0afe23d6ad0c89215f7e25b1e022aff"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#aa0afe23d6ad0c89215f7e25b1e022aff">&#9670;&nbsp;</a></span>size()</h2>
 
@@ -2369,6 +2447,31 @@ template&lt;class ValueType, class KeySelect, class ValueSelect, class Hash, cla
   </tr>
 </table>
 </div><div class="memdoc">
+
+</div>
+</div>
+<a id="a5bcbecdb42e15b434225623e1b0ccba8"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a5bcbecdb42e15b434225623e1b0ccba8">&#9670;&nbsp;</a></span>SERIALIZATION_PROTOCOL_VERSION</h2>
+
+<div class="memitem">
+<div class="memproto">
+<div class="memtemplate">
+template&lt;class ValueType, class KeySelect, class ValueSelect, class Hash, class KeyEqual, class Allocator, class GrowthPolicy, tsl::sh::exception_safety ExceptionSafety, tsl::sh::sparsity Sparsity, tsl::sh::probing Probing&gt; </div>
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">const <a class="el" href="namespacetsl_1_1detail__sparse__hash.html#a9062a45890b1bd6d12b02dde80f0ee94">slz_size_type</a> <a class="el" href="classtsl_1_1detail__sparse__hash_1_1sparse__hash.html">tsl::detail_sparse_hash::sparse_hash</a>&lt; ValueType, KeySelect, ValueSelect, Hash, KeyEqual, Allocator, GrowthPolicy, ExceptionSafety, Sparsity, Probing &gt;::SERIALIZATION_PROTOCOL_VERSION = 1</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<p>Protocol version currenlty used for serialization. </p>
 
 </div>
 </div>
