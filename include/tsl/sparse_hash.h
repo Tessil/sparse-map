@@ -919,7 +919,7 @@ private:
  * 
  * 
  * The class holds its buckets in a 2-dimensional fashion. Instead of having a linear `std::vector<bucket>` 
- * for [0, bucket_count) where each bucket stores one value, we have a `std::vector<sparse_array>` (m_sparse_buckets) 
+ * for [0, bucket_count) where each bucket stores one value, we have a `std::vector<sparse_array>` (m_sparse_buckets_data) 
  * where each `sparse_array` stores multiple values (up to `sparse_array::BITMAP_NB_BITS`). To convert a one dimensional 
  * `ibucket` position to a position in `std::vector<sparse_array>` and a position in `sparse_array`, use respectively 
  * the methods `sparse_array::sparse_ibucket(ibucket)` and `sparse_array::index_in_sparse_bucket(ibucket)`.
@@ -992,7 +992,7 @@ public:
                                                                 typename sparse_array::iterator>::type;
                                                           
         /**
-         * sparse_array_it should be nullptr if sparse_bucket_it == m_sparse_buckets.end(). (TODO better way?)
+         * sparse_array_it should be nullptr if sparse_bucket_it == m_sparse_buckets_data.end(). (TODO better way?)
          */
         sparse_iterator(sparse_bucket_iterator sparse_bucket_it,
                         sparse_array_iterator sparse_array_it): m_sparse_buckets_it(sparse_bucket_it), 
@@ -1090,8 +1090,8 @@ public:
                                         Hash(hash), 
                                         KeyEqual(equal),
                                         GrowthPolicy(bucket_count),
-                                        m_sparse_buckets(alloc), 
-                                        m_first_or_empty_sparse_bucket(static_empty_sparse_bucket_ptr()),
+                                        m_sparse_buckets_data(alloc), 
+                                        m_sparse_buckets(static_empty_sparse_bucket_ptr()),
                                         m_bucket_count(bucket_count),
                                         m_nb_elements(0),
                                         m_nb_deleted_buckets(0)
@@ -1113,11 +1113,11 @@ public:
                     std::max(size_type(1), 
                              sparse_array::sparse_ibucket(tsl::detail_sparse_hash::round_up_to_power_of_two(bucket_count)));
                     
-            m_sparse_buckets.resize(nb_sparse_buckets);
-            m_first_or_empty_sparse_bucket = m_sparse_buckets.data();
+            m_sparse_buckets_data.resize(nb_sparse_buckets);
+            m_sparse_buckets = m_sparse_buckets_data.data();
             
-            tsl_sh_assert(!m_sparse_buckets.empty());
-            m_sparse_buckets.back().set_as_last();
+            tsl_sh_assert(!m_sparse_buckets_data.empty());
+            m_sparse_buckets_data.back().set_as_last();
         }
             
         
@@ -1140,7 +1140,7 @@ public:
                     Hash(other),
                     KeyEqual(other),
                     GrowthPolicy(other),
-                    m_sparse_buckets(std::allocator_traits<Allocator>::select_on_container_copy_construction(other)),
+                    m_sparse_buckets_data(std::allocator_traits<Allocator>::select_on_container_copy_construction(other)),
                     m_bucket_count(other.m_bucket_count),
                     m_nb_elements(other.m_nb_elements),
                     m_nb_deleted_buckets(other.m_nb_deleted_buckets),
@@ -1149,7 +1149,7 @@ public:
                     m_max_load_factor(other.m_max_load_factor)
     {
         copy_buckets_from(other),
-        m_first_or_empty_sparse_bucket = m_sparse_buckets.data();
+        m_sparse_buckets = m_sparse_buckets_data.data();
     }
     
     sparse_hash(sparse_hash&& other) noexcept(std::is_nothrow_move_constructible<Allocator>::value &&
@@ -1161,9 +1161,9 @@ public:
                                             Hash(std::move(other)),
                                             KeyEqual(std::move(other)),
                                             GrowthPolicy(std::move(other)),
-                                            m_sparse_buckets(std::move(other.m_sparse_buckets)),
-                                            m_first_or_empty_sparse_bucket(m_sparse_buckets.empty()?static_empty_sparse_bucket_ptr():
-                                                                                                    m_sparse_buckets.data()),
+                                            m_sparse_buckets_data(std::move(other.m_sparse_buckets_data)),
+                                            m_sparse_buckets(m_sparse_buckets_data.empty()?static_empty_sparse_bucket_ptr():
+                                                                                           m_sparse_buckets_data.data()),
                                             m_bucket_count(other.m_bucket_count),
                                             m_nb_elements(other.m_nb_elements),
                                             m_nb_deleted_buckets(other.m_nb_deleted_buckets),
@@ -1172,8 +1172,8 @@ public:
                                             m_max_load_factor(other.m_max_load_factor)
     {
         other.GrowthPolicy::clear();
-        other.m_sparse_buckets.clear();
-        other.m_first_or_empty_sparse_bucket = static_empty_sparse_bucket_ptr();
+        other.m_sparse_buckets_data.clear();
+        other.m_sparse_buckets = static_empty_sparse_bucket_ptr();
         other.m_bucket_count = 0;
         other.m_nb_elements = 0;
         other.m_nb_deleted_buckets = 0;
@@ -1194,20 +1194,20 @@ public:
             GrowthPolicy::operator=(other);
             
             if(std::allocator_traits<Allocator>::propagate_on_container_copy_assignment::value) {
-                m_sparse_buckets = sparse_buckets_container(static_cast<const Allocator&>(other));
+                m_sparse_buckets_data = sparse_buckets_container(static_cast<const Allocator&>(other));
             }
             else {
-                if(m_sparse_buckets.size() != other.m_sparse_buckets.size()) {
-                    m_sparse_buckets = sparse_buckets_container(static_cast<const Allocator&>(*this));
+                if(m_sparse_buckets_data.size() != other.m_sparse_buckets_data.size()) {
+                    m_sparse_buckets_data = sparse_buckets_container(static_cast<const Allocator&>(*this));
                 }
                 else {
-                    m_sparse_buckets.clear();
+                    m_sparse_buckets_data.clear();
                 }
             }
             
             copy_buckets_from(other);
-            m_first_or_empty_sparse_bucket = m_sparse_buckets.empty()?static_empty_sparse_bucket_ptr():
-                                                                      m_sparse_buckets.data();
+            m_sparse_buckets = m_sparse_buckets_data.empty()?static_empty_sparse_bucket_ptr():
+                                                             m_sparse_buckets_data.data();
             
             
             m_bucket_count = other.m_bucket_count;
@@ -1226,19 +1226,19 @@ public:
         
         if(std::allocator_traits<Allocator>::propagate_on_container_move_assignment::value) {
             static_cast<Allocator&>(*this) = std::move(static_cast<Allocator&>(other));
-            m_sparse_buckets = std::move(other.m_sparse_buckets);
+            m_sparse_buckets_data = std::move(other.m_sparse_buckets_data);
         }
         else if(static_cast<Allocator&>(*this) != static_cast<Allocator&>(other)) {
             move_buckets_from(std::move(other));
         }
         else {
             static_cast<Allocator&>(*this) = std::move(static_cast<Allocator&>(other));
-            m_sparse_buckets = std::move(other.m_sparse_buckets);
+            m_sparse_buckets_data = std::move(other.m_sparse_buckets_data);
         }
 
             
-        m_first_or_empty_sparse_bucket = m_sparse_buckets.empty()?static_empty_sparse_bucket_ptr():
-                                                                  m_sparse_buckets.data();
+        m_sparse_buckets = m_sparse_buckets_data.empty()?static_empty_sparse_bucket_ptr():
+                                                         m_sparse_buckets_data.data();
         
         static_cast<Hash&>(*this) = std::move(static_cast<Hash&>(other));
         static_cast<KeyEqual&>(*this) = std::move(static_cast<KeyEqual&>(other));
@@ -1251,8 +1251,8 @@ public:
         m_max_load_factor = other.m_max_load_factor;
         
         other.GrowthPolicy::clear();
-        other.m_sparse_buckets.clear();
-        other.m_first_or_empty_sparse_bucket = static_empty_sparse_bucket_ptr();
+        other.m_sparse_buckets_data.clear();
+        other.m_sparse_buckets = static_empty_sparse_bucket_ptr();
         other.m_bucket_count = 0;
         other.m_nb_elements = 0;
         other.m_nb_deleted_buckets = 0;
@@ -1271,12 +1271,12 @@ public:
      * Iterators
      */    
     iterator begin() noexcept {
-        auto begin = m_sparse_buckets.begin();
-        while(begin != m_sparse_buckets.end() && begin->empty()) {
+        auto begin = m_sparse_buckets_data.begin();
+        while(begin != m_sparse_buckets_data.end() && begin->empty()) {
             ++begin;
         }
         
-        return iterator(begin, (begin != m_sparse_buckets.end())?begin->begin():nullptr);
+        return iterator(begin, (begin != m_sparse_buckets_data.end())?begin->begin():nullptr);
     }
     
     const_iterator begin() const noexcept {
@@ -1284,16 +1284,16 @@ public:
     }
     
     const_iterator cbegin() const noexcept {
-        auto begin = m_sparse_buckets.cbegin();
-        while(begin != m_sparse_buckets.cend() && begin->empty()) {
+        auto begin = m_sparse_buckets_data.cbegin();
+        while(begin != m_sparse_buckets_data.cend() && begin->empty()) {
             ++begin;
         }
         
-        return const_iterator(begin, (begin != m_sparse_buckets.cend())?begin->cbegin():nullptr);
+        return const_iterator(begin, (begin != m_sparse_buckets_data.cend())?begin->cbegin():nullptr);
     }
     
     iterator end() noexcept {
-        return iterator(m_sparse_buckets.end(), nullptr);
+        return iterator(m_sparse_buckets_data.end(), nullptr);
     }
     
     const_iterator end() const noexcept {
@@ -1301,7 +1301,7 @@ public:
     }
     
     const_iterator cend() const noexcept {
-        return const_iterator(m_sparse_buckets.cend(), nullptr);
+        return const_iterator(m_sparse_buckets_data.cend(), nullptr);
     }
     
     
@@ -1317,14 +1317,14 @@ public:
     }
     
     size_type max_size() const noexcept {
-        return std::min(std::allocator_traits<Allocator>::max_size(), m_sparse_buckets.max_size());
+        return std::min(std::allocator_traits<Allocator>::max_size(), m_sparse_buckets_data.max_size());
     }
     
     /*
      * Modifiers
      */
     void clear() noexcept {
-        for(auto& bucket: m_sparse_buckets) {
+        for(auto& bucket: m_sparse_buckets_data) {
             bucket.clear(*this);
         }
         
@@ -1434,9 +1434,9 @@ public:
             auto it_sparse_buckets_next = pos.m_sparse_buckets_it;
             do {
                 ++it_sparse_buckets_next;
-            } while(it_sparse_buckets_next != m_sparse_buckets.end() && it_sparse_buckets_next->empty());
+            } while(it_sparse_buckets_next != m_sparse_buckets_data.end() && it_sparse_buckets_next->empty());
             
-            if(it_sparse_buckets_next == m_sparse_buckets.end()) {
+            if(it_sparse_buckets_next == m_sparse_buckets_data.end()) {
                 return end();
             }
             else {
@@ -1493,8 +1493,8 @@ public:
         swap(static_cast<Hash&>(*this), static_cast<Hash&>(other));
         swap(static_cast<KeyEqual&>(*this), static_cast<KeyEqual&>(other));
         swap(static_cast<GrowthPolicy&>(*this), static_cast<GrowthPolicy&>(other));
+        swap(m_sparse_buckets_data, other.m_sparse_buckets_data);
         swap(m_sparse_buckets, other.m_sparse_buckets);
-        swap(m_first_or_empty_sparse_bucket, other.m_first_or_empty_sparse_bucket);
         swap(m_bucket_count, other.m_bucket_count);
         swap(m_nb_elements, other.m_nb_elements);
         swap(m_nb_deleted_buckets, other.m_nb_deleted_buckets);
@@ -1609,7 +1609,7 @@ public:
     }
     
     size_type max_bucket_count() const {
-        return m_sparse_buckets.max_size();
+        return m_sparse_buckets_data.max_size();
     }
     
     /*
@@ -1661,8 +1661,8 @@ public:
      * Other
      */    
     iterator mutable_iterator(const_iterator pos) {
-        auto it_sparse_buckets = m_sparse_buckets.begin() + 
-                                 std::distance(m_sparse_buckets.cbegin(), pos.m_sparse_buckets_it);
+        auto it_sparse_buckets = m_sparse_buckets_data.begin() + 
+                                 std::distance(m_sparse_buckets_data.cbegin(), pos.m_sparse_buckets_it);
                                     
         return iterator(it_sparse_buckets, sparse_array::mutable_iterator(pos.m_sparse_array_it));
     }
@@ -1690,8 +1690,8 @@ private:
     
     size_type bucket_for_hash(std::size_t hash) const {
         const std::size_t bucket = GrowthPolicy::bucket_for_hash(hash);
-        tsl_sh_assert(sparse_array::sparse_ibucket(bucket) < m_sparse_buckets.size() || 
-                   (bucket == 0 && m_sparse_buckets.empty()));
+        tsl_sh_assert(sparse_array::sparse_ibucket(bucket) < m_sparse_buckets_data.size() || 
+                   (bucket == 0 && m_sparse_buckets_data.empty()));
         
         return bucket;        
     }
@@ -1723,13 +1723,13 @@ private:
     }
     
     
-    // TODO encapsulate m_sparse_buckets to avoid the managing the allocator
+    // TODO encapsulate m_sparse_buckets_data to avoid the managing the allocator
     void copy_buckets_from(const sparse_hash& other) {
-        m_sparse_buckets.reserve(other.m_sparse_buckets.size());
+        m_sparse_buckets_data.reserve(other.m_sparse_buckets_data.size());
         
         try {
-            for(const auto& bucket: other.m_sparse_buckets) {
-                m_sparse_buckets.emplace_back(bucket, static_cast<Allocator&>(*this));
+            for(const auto& bucket: other.m_sparse_buckets_data) {
+                m_sparse_buckets_data.emplace_back(bucket, static_cast<Allocator&>(*this));
             }
         }
         catch(...) {
@@ -1737,15 +1737,15 @@ private:
             throw;
         }        
         
-        tsl_sh_assert(m_sparse_buckets.empty() || m_sparse_buckets.back().last());
+        tsl_sh_assert(m_sparse_buckets_data.empty() || m_sparse_buckets_data.back().last());
     }
     
     void move_buckets_from(sparse_hash&& other) {
-        m_sparse_buckets.reserve(other.m_sparse_buckets.size());
+        m_sparse_buckets_data.reserve(other.m_sparse_buckets_data.size());
         
         try {
-            for(auto&& bucket: other.m_sparse_buckets) {
-                m_sparse_buckets.emplace_back(std::move(bucket), static_cast<Allocator&>(*this));
+            for(auto&& bucket: other.m_sparse_buckets_data) {
+                m_sparse_buckets_data.emplace_back(std::move(bucket), static_cast<Allocator&>(*this));
             }
         }
         catch(...) {
@@ -1753,7 +1753,7 @@ private:
             throw;
         }        
         
-        tsl_sh_assert(m_sparse_buckets.empty() || m_sparse_buckets.back().last());
+        tsl_sh_assert(m_sparse_buckets_data.empty() || m_sparse_buckets_data.back().last());
     }
     
     
@@ -1765,7 +1765,7 @@ private:
         else if(size() + m_nb_deleted_buckets >= m_load_threshold_clear_deleted) {
             clear_deleted_buckets();
         }
-        tsl_sh_assert(!m_sparse_buckets.empty());
+        tsl_sh_assert(!m_sparse_buckets_data.empty());
         
         /**
          * We must insert the value in the first empty or deleted bucket we find. If we first find a 
@@ -1791,7 +1791,7 @@ private:
             if(m_sparse_buckets[sparse_ibucket].has_value(index_in_sparse_bucket)) {
                 auto value_it = m_sparse_buckets[sparse_ibucket].value(index_in_sparse_bucket);
                 if(compare_keys(key, KeySelect()(*value_it))) {
-                    return std::make_pair(iterator(m_sparse_buckets.begin() + sparse_ibucket, value_it), false);
+                    return std::make_pair(iterator(m_sparse_buckets_data.begin() + sparse_ibucket, value_it), false);
                 }
             }
             else if(m_sparse_buckets[sparse_ibucket].has_deleted_value(index_in_sparse_bucket) && 
@@ -1829,7 +1829,7 @@ private:
                                                              std::forward<Args>(value_type_args)...);
         m_nb_elements++;
         
-        return std::make_pair(iterator(m_sparse_buckets.begin() + sparse_ibucket, value_it), true);
+        return std::make_pair(iterator(m_sparse_buckets_data.begin() + sparse_ibucket, value_it), true);
     }
     
     
@@ -1845,17 +1845,17 @@ private:
             const std::size_t sparse_ibucket = sparse_array::sparse_ibucket(ibucket);
             const auto index_in_sparse_bucket = sparse_array::index_in_sparse_bucket(ibucket);
         
-            if((m_first_or_empty_sparse_bucket + sparse_ibucket)->has_value(index_in_sparse_bucket)) {
-                auto value_it = (m_first_or_empty_sparse_bucket + sparse_ibucket)->value(index_in_sparse_bucket);
+            if(m_sparse_buckets[sparse_ibucket].has_value(index_in_sparse_bucket)) {
+                auto value_it = m_sparse_buckets[sparse_ibucket].value(index_in_sparse_bucket);
                 if(compare_keys(key, KeySelect()(*value_it))) {
-                    (m_first_or_empty_sparse_bucket + sparse_ibucket)->erase(*this, value_it, index_in_sparse_bucket);
+                    m_sparse_buckets[sparse_ibucket].erase(*this, value_it, index_in_sparse_bucket);
                     m_nb_elements--;
                     m_nb_deleted_buckets++;
                     
                     return 1;
                 }
             }
-            else if(!(m_first_or_empty_sparse_bucket + sparse_ibucket)->has_deleted_value(index_in_sparse_bucket) || probe >= m_bucket_count) {
+            else if(!m_sparse_buckets[sparse_ibucket].has_deleted_value(index_in_sparse_bucket) || probe >= m_bucket_count) {
                 return 0;
             }
             
@@ -1880,13 +1880,13 @@ private:
             const std::size_t sparse_ibucket = sparse_array::sparse_ibucket(ibucket);
             const auto index_in_sparse_bucket = sparse_array::index_in_sparse_bucket(ibucket);
         
-            if((m_first_or_empty_sparse_bucket + sparse_ibucket)->has_value(index_in_sparse_bucket)) {
-                auto value_it = (m_first_or_empty_sparse_bucket + sparse_ibucket)->value(index_in_sparse_bucket);
+            if(m_sparse_buckets[sparse_ibucket].has_value(index_in_sparse_bucket)) {
+                auto value_it = m_sparse_buckets[sparse_ibucket].value(index_in_sparse_bucket);
                 if(compare_keys(key, KeySelect()(*value_it))) {
-                    return const_iterator(m_sparse_buckets.cbegin() + sparse_ibucket, value_it);
+                    return const_iterator(m_sparse_buckets_data.cbegin() + sparse_ibucket, value_it);
                 }
             }
-            else if(!(m_first_or_empty_sparse_bucket + sparse_ibucket)->has_deleted_value(index_in_sparse_bucket) || probe >= m_bucket_count) {
+            else if(!m_sparse_buckets[sparse_ibucket].has_deleted_value(index_in_sparse_bucket) || probe >= m_bucket_count) {
                 return cend();
             }
             
@@ -1907,7 +1907,7 @@ private:
         sparse_hash new_table(count, static_cast<Hash&>(*this), static_cast<KeyEqual&>(*this), 
                               static_cast<Allocator&>(*this), m_max_load_factor);
             
-        for(auto& bucket: m_sparse_buckets) {
+        for(auto& bucket: m_sparse_buckets_data) {
             for(auto& val: bucket) {
                 new_table.insert_on_rehash(std::move(val));
             }
@@ -1930,7 +1930,7 @@ private:
         sparse_hash new_table(count, static_cast<Hash&>(*this), static_cast<KeyEqual&>(*this), 
                               static_cast<Allocator&>(*this), m_max_load_factor);
             
-        for(const auto& bucket: m_sparse_buckets) {
+        for(const auto& bucket: m_sparse_buckets_data) {
             for(const auto& val: bucket) {
                 new_table.insert_on_rehash(val);
             }
@@ -1952,8 +1952,8 @@ private:
             std::size_t sparse_ibucket = sparse_array::sparse_ibucket(ibucket);
             auto index_in_sparse_bucket = sparse_array::index_in_sparse_bucket(ibucket);
         
-            if(!(m_first_or_empty_sparse_bucket + sparse_ibucket)->has_value(index_in_sparse_bucket)) {
-                (m_first_or_empty_sparse_bucket + sparse_ibucket)->set(*this, index_in_sparse_bucket, 
+            if(!m_sparse_buckets[sparse_ibucket].has_value(index_in_sparse_bucket)) {
+                m_sparse_buckets[sparse_ibucket].set(*this, index_in_sparse_bucket, 
                                                                        std::forward<K>(key_value));
                 m_nb_elements++;
                 
@@ -1961,7 +1961,7 @@ private:
             }
             else {
                 tsl_sh_assert(!compare_keys(key, 
-                                         KeySelect()(*(m_first_or_empty_sparse_bucket + sparse_ibucket)->value(index_in_sparse_bucket))));
+                                         KeySelect()(*m_sparse_buckets[sparse_ibucket].value(index_in_sparse_bucket))));
             }
             
             probe++;
@@ -1977,7 +1977,7 @@ private:
         const slz_size_type bucket_count = m_bucket_count;
         serializer(bucket_count);
         
-        const slz_size_type nb_sparse_buckets = m_sparse_buckets.size(); 
+        const slz_size_type nb_sparse_buckets = m_sparse_buckets_data.size(); 
         serializer(nb_sparse_buckets);
         
         const slz_size_type nb_elements = m_nb_elements;
@@ -1990,14 +1990,14 @@ private:
         serializer(max_load_factor);
         
         
-        for(const auto& bucket: m_sparse_buckets) {
+        for(const auto& bucket: m_sparse_buckets_data) {
             bucket.serialize(serializer);
         }
     }
     
     template<class Deserializer>
     void deserialize_impl(Deserializer& deserializer, bool hash_compatible) {
-        tsl_sh_assert(m_bucket_count == 0 && m_sparse_buckets.empty()); // Current hash table must be empty
+        tsl_sh_assert(m_bucket_count == 0 && m_sparse_buckets_data.empty()); // Current hash table must be empty
         
         const slz_size_type version = deserialize_value<slz_size_type>(deserializer);
         // For now we only have one version of the serialization protocol. 
@@ -2045,14 +2045,14 @@ private:
             m_nb_deleted_buckets = numeric_cast<size_type>(nb_deleted_buckets, "Deserialized nb_deleted_buckets is too big.");
             
             tsl_sh_assert(nb_sparse_buckets > 0);
-            m_sparse_buckets.reserve(numeric_cast<size_type>(nb_sparse_buckets, "Deserialized nb_sparse_buckets is too big."));
+            m_sparse_buckets_data.reserve(numeric_cast<size_type>(nb_sparse_buckets, "Deserialized nb_sparse_buckets is too big."));
             
             for(slz_size_type ibucket = 0; ibucket < nb_sparse_buckets; ibucket++) {
-                m_sparse_buckets.emplace_back(sparse_array::deserialize_hash_compatible(deserializer, static_cast<Allocator&>(*this)));
+                m_sparse_buckets_data.emplace_back(sparse_array::deserialize_hash_compatible(deserializer, static_cast<Allocator&>(*this)));
             }
             
-            m_sparse_buckets.back().set_as_last();
-            m_first_or_empty_sparse_bucket = m_sparse_buckets.data();
+            m_sparse_buckets_data.back().set_as_last();
+            m_sparse_buckets = m_sparse_buckets_data.data();
             
             
             if(load_factor() > this->max_load_factor()) {
@@ -2080,16 +2080,16 @@ public:
     }
     
 private:
-    sparse_buckets_container m_sparse_buckets;
+    sparse_buckets_container m_sparse_buckets_data;
     
     /**
-     * Points to m_sparse_buckets.data() if !m_sparse_buckets.empty() otherwise points to 
+     * Points to m_sparse_buckets_data.data() if !m_sparse_buckets_data.empty() otherwise points to 
      * static_empty_sparse_bucket_ptr. This variable is useful to avoid the cost of checking  
-     * if m_sparse_buckets is empty when trying to find an element.
+     * if m_sparse_buckets_data is empty when trying to find an element.
      * 
-     * TODO Remove m_buckets and only use a pointer instead of a pointer+vector to save some space in the sparse_hash object.
+     * TODO Remove m_sparse_buckets_data and only use a pointer instead of a pointer+vector to save some space in the sparse_hash object.
      */
-    sparse_array* m_first_or_empty_sparse_bucket;
+    sparse_array* m_sparse_buckets;
     
     size_type m_bucket_count;
     size_type m_nb_elements;
