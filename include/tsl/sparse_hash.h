@@ -244,7 +244,7 @@ static T numeric_cast(U value, const char* error_message = "numeric_cast() faile
     
     const bool is_same_signedness = (std::is_unsigned<T>::value && std::is_unsigned<U>::value) ||
                                     (std::is_signed<T>::value && std::is_signed<U>::value);
-    if(is_same_signedness && (ret < T{}) != (value < U{})) {
+    if(!is_same_signedness && (ret < T{}) != (value < U{})) {
         throw std::runtime_error(error_message);
     }
     
