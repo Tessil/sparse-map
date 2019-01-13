@@ -119,7 +119,7 @@ public:
     /*
      * Constructors
      */
-    sparse_set(): sparse_set(ht::DEFAULT_INIT_BUCKETS_SIZE) {
+    sparse_set(): sparse_set(ht::DEFAULT_INIT_BUCKET_COUNT) {
     }
     
     explicit sparse_set(size_type bucket_count, 
@@ -141,12 +141,12 @@ public:
     {
     }
     
-    explicit sparse_set(const Allocator& alloc): sparse_set(ht::DEFAULT_INIT_BUCKETS_SIZE, alloc) {
+    explicit sparse_set(const Allocator& alloc): sparse_set(ht::DEFAULT_INIT_BUCKET_COUNT, alloc) {
     }
     
     template<class InputIt>
     sparse_set(InputIt first, InputIt last,
-              size_type bucket_count = ht::DEFAULT_INIT_BUCKETS_SIZE,
+              size_type bucket_count = ht::DEFAULT_INIT_BUCKET_COUNT,
               const Hash& hash = Hash(),
               const KeyEqual& equal = KeyEqual(),
               const Allocator& alloc = Allocator()): sparse_set(bucket_count, hash, equal, alloc)
@@ -170,7 +170,7 @@ public:
     }
 
     sparse_set(std::initializer_list<value_type> init,
-              size_type bucket_count = ht::DEFAULT_INIT_BUCKETS_SIZE,
+              size_type bucket_count = ht::DEFAULT_INIT_BUCKET_COUNT,
               const Hash& hash = Hash(),
               const KeyEqual& equal = KeyEqual(),
               const Allocator& alloc = Allocator()): 

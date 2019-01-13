@@ -337,8 +337,6 @@ private:
     
     
 public:
-    static const std::size_t DEFAULT_INIT_BUCKETS_SIZE = BITMAP_NB_BITS;
-
     /**
      * Map an ibucket [0, bucket_count) in the hash table to a sparse_ibucket 
      * (a sparse_array holds multiple buckets, so there is less sparse_array than bucket_count).
@@ -2063,7 +2061,7 @@ private:
     }
     
 public:    
-    static const size_type DEFAULT_INIT_BUCKETS_SIZE = sparse_array::DEFAULT_INIT_BUCKETS_SIZE;
+    static const size_type DEFAULT_INIT_BUCKET_COUNT = 0;
     static constexpr float DEFAULT_MAX_LOAD_FACTOR = 0.5f;
     
     /**
