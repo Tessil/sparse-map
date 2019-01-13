@@ -301,7 +301,7 @@ class serializer {
 public:
     serializer(const char* file_name) {
         m_ostream.exceptions(m_ostream.badbit | m_ostream.failbit);
-        m_ostream.open(file_name);
+        m_ostream.open(file_name, std::ios::binary);
     }
     
     template<class T,
@@ -323,7 +323,7 @@ class deserializer {
 public:
     deserializer(const char* file_name) {
         m_istream.exceptions(m_istream.badbit | m_istream.failbit | m_istream.eofbit);
-        m_istream.open(file_name);
+        m_istream.open(file_name, std::ios::binary);
     }
     
     template<class T>
@@ -383,6 +383,83 @@ int main() {
         assert(map == map_deserialized);
     }
 } 
+```
+
+##### Serialization with Boost Serialization and compression with zlib
+
+It's possible to use a serialization library to avoid the boilerplate. 
+
+The following example uses Boost Serialization with the Boost zlib compression stream to reduce the size of the resulting serialized file. The example requires C++20 due to the usage of the template parameter list syntax in lambdas, but it can be adapted to less recent versions.
+
+```c++
+#include <boost/archive/binary_iarchive.hpp>
+#include <boost/archive/binary_oarchive.hpp>
+#include <boost/iostreams/filter/zlib.hpp>
+#include <boost/iostreams/filtering_stream.hpp>
+#include <boost/serialization/split_free.hpp>
+#include <boost/serialization/utility.hpp>
+#include <cassert>
+#include <cstdint>
+#include <fstream>
+#include <tsl/sparse_map.h>
+
+
+namespace boost { namespace serialization {
+    template<class Archive, class Key, class T>
+    void serialize(Archive & ar, tsl::sparse_map<Key, T>& map, const unsigned int version) {
+        split_free(ar, map, version); 
+    }
+
+    template<class Archive, class Key, class T>
+    void save(Archive & ar, const tsl::sparse_map<Key, T>& map, const unsigned int /*version*/) {
+        auto serializer = [&ar](const auto& v) { ar & v; };
+        map.serialize(serializer);
+    }
+
+    template<class Archive, class Key, class T>
+    void load(Archive & ar, tsl::sparse_map<Key, T>& map, const unsigned int /*version*/) {
+        auto deserializer = [&ar]<typename U>() { U u; ar & u; return u; };
+        map = tsl::sparse_map<Key, T>::deserialize(deserializer);
+    }
+}}
+
+
+int main() {
+    tsl::sparse_map<std::int64_t, std::int64_t> map = {{1, -1}, {2, -2}, {3, -3}, {4, -4}};
+    
+    
+    const char* file_name = "sparse_map.data";
+    {
+        std::ofstream ofs;
+        ofs.exceptions(ofs.badbit | ofs.failbit);
+        ofs.open(file_name, std::ios::binary);
+        
+        boost::iostreams::filtering_ostream fo;
+        fo.push(boost::iostreams::zlib_compressor());
+        fo.push(ofs);
+        
+        boost::archive::binary_oarchive oa(fo);
+        
+        oa << map;
+    }
+    
+    {
+        std::ifstream ifs;
+        ifs.exceptions(ifs.badbit | ifs.failbit | ifs.eofbit);
+        ifs.open(file_name, std::ios::binary);
+        
+        boost::iostreams::filtering_istream fi;
+        fi.push(boost::iostreams::zlib_decompressor());
+        fi.push(ifs);
+        
+        boost::archive::binary_iarchive ia(fi);
+     
+        tsl::sparse_map<std::int64_t, std::int64_t> map_deserialized;   
+        ia >> map_deserialized;
+        
+        assert(map == map_deserialized);
+    }
+}
 ```
 
 ### License
