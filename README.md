@@ -273,6 +273,7 @@ To do so, it requires the user to provide a function object for both serializati
 struct serializer {
     // Must support the following types for U: std::uint64_t, float 
     // and std::pair<Key, T> if a map is used or Key for a set.
+    template<typename U>
     void operator()(const U& value);
 };
 ```
@@ -281,6 +282,7 @@ struct serializer {
 struct deserializer {
     // Must support the following types for U: std::uint64_t, float 
     // and std::pair<Key, T> if a map is used or Key for a set.
+    template<typename U>
     U operator()();
 };
 ```
