@@ -642,7 +642,7 @@ public:
      * Serialize the map through the `serializer` parameter.
      * 
      * The `serializer` parameter must be a function object that supports the following call:
-     *  - `void operator()(const U& value);` where the types `std::uint64_t`, `float` and `std::pair<Key, T>` must be supported for U.
+     *  - `template<typename U> void operator()(const U& value);` where the types `std::uint64_t`, `float` and `std::pair<Key, T>` must be supported for U.
      * 
      * The implementation leaves binary compatibilty (endianness, IEEE 754 for floats, ...) of the types it serializes
      * in the hands of the `Serializer` function object if compatibilty is required.
@@ -661,7 +661,7 @@ public:
      * If the deserialized hash map type is hash compatible with the serialized map, the deserialization process can be
      * sped up by setting `hash_compatible` to true. To be hash compatible, the Hash, KeyEqual and GrowthPolicy must behave the 
      * same way than the ones used on the serialized map. The `std::size_t` must also be of the same size as the one on the platform used
-     * to serialize the map. If these criteria are not met, the behaviour is undefined with `hash_compatible` sets to true, .
+     * to serialize the map. If these criteria are not met, the behaviour is undefined with `hash_compatible` sets to true.
      * 
      * The behaviour is undefined if the type `Key` and `T` of the `sparse_map` are not the same as the
      * types used during serialization.

@@ -525,7 +525,7 @@ public:
      * If the deserialized hash set type is hash compatible with the serialized set, the deserialization process can be
      * sped up by setting `hash_compatible` to true. To be hash compatible, the Hash, KeyEqual and GrowthPolicy must behave the 
      * same way than the ones used on the serialized set. The `std::size_t` must also be of the same size as the one on the platform used
-     * to serialize the set. If these criteria are not met, the behaviour is undefined with `hash_compatible` sets to true, .
+     * to serialize the set. If these criteria are not met, the behaviour is undefined with `hash_compatible` sets to true.
      * 
      * The behaviour is undefined if the type `Key` of the `sparse_set` is not the same as the
      * type used during serialization.
