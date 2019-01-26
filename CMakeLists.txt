@@ -18,8 +18,8 @@ target_sources(sparse_map INTERFACE "$<BUILD_INTERFACE:${headers}>")
 
 if(MSVC)
     target_sources(sparse_map INTERFACE
-                   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/tsl_sparse_map.natvis>"
-                   "$<INSTALL_INTERFACE:tsl_sparse_map.natvis>")
+                   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/tsl-sparse-map.natvis>"
+                   "$<INSTALL_INTERFACE:tsl-sparse-map.natvis>")
 endif()
 
 # Only compatible with CMake version >= 3.8
@@ -40,7 +40,7 @@ if(${CMAKE_VERSION} VERSION_GREATER "3.2")
             DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 
     if(MSVC)
-        install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/tsl_sparse_map.natvis"
+        install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/tsl-sparse-map.natvis"
                 DESTINATION ".")
     endif()
 
