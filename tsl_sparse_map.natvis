@@ -12,7 +12,7 @@
             <Item Name="[load_factor]" Condition="m_ht.m_bucket_count == 0" IncludeView="detailed">0</Item>
             <Item Name="[max_load_factor]" IncludeView="detailed">m_ht.m_max_load_factor</Item>
             <CustomListItems>
-                <Variable Name="bucket" InitialValue="m_ht.m_first_or_empty_sparse_bucket"/>
+                <Variable Name="bucket" InitialValue="m_ht.m_sparse_buckets"/>
                 <Variable Name="element" InitialValue="bucket-&gt;m_values"/>
                 <Variable Name="num_elements" InitialValue="bucket-&gt;m_nb_elements"/>
 
@@ -42,7 +42,7 @@
             <Item Name="[load_factor]" Condition="m_ht.m_bucket_count == 0" IncludeView="detailed">0</Item>
             <Item Name="[max_load_factor]" IncludeView="detailed">m_ht.m_max_load_factor</Item>
             <CustomListItems>
-                <Variable Name="bucket" InitialValue="m_ht.m_first_or_empty_sparse_bucket"/>
+                <Variable Name="bucket" InitialValue="m_ht.m_sparse_buckets"/>
                 <Variable Name="element" InitialValue="bucket-&gt;m_values"/>
                 <Variable Name="num_elements" InitialValue="bucket-&gt;m_nb_elements"/>
 
