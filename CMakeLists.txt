@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.1)
 include(GNUInstallDirs)
 
 
-project(tsl-sparse-map VERSION 0.5.0)
+project(tsl-sparse-map VERSION 0.6.0)
 
 add_library(sparse_map INTERFACE)
 # Use tsl::sparse_map as target, more consistent with other libraries conventions (Boost, Qt, ...)
