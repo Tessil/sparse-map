@@ -1009,10 +1009,17 @@ public:
         sparse_iterator() noexcept {
         }
         
-        sparse_iterator(const sparse_iterator<false>& other) noexcept: m_sparse_buckets_it(other.m_sparse_buckets_it),
-                                                                       m_sparse_array_it(other.m_sparse_array_it)
+        // Copy constructor from iterator to const_iterator.
+        template<bool TIsConst = IsConst, typename std::enable_if<TIsConst>::type* = nullptr>
+        sparse_iterator(const sparse_iterator<!TIsConst>& other) noexcept: m_sparse_buckets_it(other.m_sparse_buckets_it),
+                                                                           m_sparse_array_it(other.m_sparse_array_it)
         {
         }
+
+        sparse_iterator(const sparse_iterator& other) = default;
+        sparse_iterator(sparse_iterator&& other) = default;
+        sparse_iterator& operator=(const sparse_iterator& other) = default;
+        sparse_iterator& operator=(sparse_iterator&& other) = default;
         
         const typename sparse_hash::key_type& key() const {
             return KeySelect()(*m_sparse_array_it);
