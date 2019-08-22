@@ -1154,7 +1154,7 @@ public:
                     m_max_load_factor(other.m_max_load_factor)
     {
         copy_buckets_from(other),
-        m_sparse_buckets = m_sparse_buckets_data.data();
+        m_sparse_buckets = m_sparse_buckets_data.empty() ? static_empty_sparse_bucket_ptr() : m_sparse_buckets_data.data();
     }
     
     sparse_hash(sparse_hash&& other) noexcept(std::is_nothrow_move_constructible<Allocator>::value &&
