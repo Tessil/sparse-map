@@ -1544,6 +1544,15 @@ public:
         return try_emplace(std::forward<K>(key)).first.value();
     }
     
+    template<class K>
+    bool contains(const K& key) const {
+        return contains(key, hash_key(key));
+    }
+    
+    template<class K>
+    bool contains(const K& key, std::size_t hash) const {
+        return count(key, hash) != 0;
+    }
     
     template<class K>
     size_type count(const K& key) const {
