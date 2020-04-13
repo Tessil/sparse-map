@@ -2070,7 +2070,7 @@ private:
             
             
             if(load_factor() > this->max_load_factor()) {
-                throw std::runtime_error("Invalid max_load_factor. Check that the serializer and deserializer supports "
+                throw std::runtime_error("Invalid max_load_factor. Check that the serializer and deserializer support "
                                          "floats correctly as they can be converted implicitely to ints.");
             }
         }
