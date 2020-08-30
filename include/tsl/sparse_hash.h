@@ -1154,7 +1154,7 @@ public:
                     m_max_load_factor(other.m_max_load_factor)
     {
         copy_buckets_from(other),
-        m_sparse_buckets = m_sparse_buckets_data.data();
+        m_sparse_buckets = m_sparse_buckets_data.empty() ? static_empty_sparse_bucket_ptr() : m_sparse_buckets_data.data();
     }
     
     sparse_hash(sparse_hash&& other) noexcept(std::is_nothrow_move_constructible<Allocator>::value &&
@@ -1544,6 +1544,15 @@ public:
         return try_emplace(std::forward<K>(key)).first.value();
     }
     
+    template<class K>
+    bool contains(const K& key) const {
+        return contains(key, hash_key(key));
+    }
+    
+    template<class K>
+    bool contains(const K& key, std::size_t hash) const {
+        return count(key, hash) != 0;
+    }
     
     template<class K>
     size_type count(const K& key) const {

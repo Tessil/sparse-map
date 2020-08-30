@@ -845,6 +845,28 @@ BOOST_AUTO_TEST_CASE(test_copy_constructor_and_operator) {
     BOOST_CHECK(map_copy == map_copy3);
 }
 
+BOOST_AUTO_TEST_CASE(test_copy_constructor_empty) {
+    tsl::sparse_map<std::string, int> map(0);
+    tsl::sparse_map<std::string, int> map_copy(map);
+    
+    BOOST_CHECK(map.empty());
+    BOOST_CHECK(map_copy.empty());
+    
+    BOOST_CHECK(map.find("") == map.end());
+    BOOST_CHECK(map_copy.find("") == map_copy.end());
+}
+
+BOOST_AUTO_TEST_CASE(test_copy_operator_empty) {
+    tsl::sparse_map<std::string, int> map(0);
+    tsl::sparse_map<std::string, int> map_copy(16);
+    map_copy = map;
+    
+    BOOST_CHECK(map.empty());
+    BOOST_CHECK(map_copy.empty());
+    
+    BOOST_CHECK(map.find("") == map.end());
+    BOOST_CHECK(map_copy.find("") == map_copy.end());
+}
 
 /**
  * at
@@ -856,6 +878,17 @@ BOOST_AUTO_TEST_CASE(test_at) {
     BOOST_CHECK_EQUAL(map.at(0), 10);
     BOOST_CHECK_EQUAL(map.at(-2), 20);
     BOOST_CHECK_THROW(map.at(1), std::out_of_range);
+}
+
+/**
+ * contains
+ */
+BOOST_AUTO_TEST_CASE(test_contains) {
+    const tsl::sparse_map<std::int64_t, std::int64_t> map = {{0, 10}, {-2, 20}};
+    
+    BOOST_CHECK(map.contains(0));
+    BOOST_CHECK(map.contains(-2));
+    BOOST_CHECK(!map.contains(-3));
 }
 
 /**
@@ -1225,6 +1258,9 @@ BOOST_AUTO_TEST_CASE(test_empty_map) {
     BOOST_CHECK_EQUAL(map.count(""), 0);
     BOOST_CHECK_EQUAL(map.count("test"), 0);
     
+    BOOST_CHECK(!map.contains(""));
+    BOOST_CHECK(!map.contains("test"));
+    
     BOOST_CHECK_THROW(map.at(""), std::out_of_range);
     BOOST_CHECK_THROW(map.at("test"), std::out_of_range);
     
@@ -1258,6 +1294,12 @@ BOOST_AUTO_TEST_CASE(test_precalculated_hash) {
      */
     BOOST_CHECK_EQUAL(map.at(3, map.hash_function()(3)), -3);
     BOOST_CHECK_EQUAL(map_const.at(3, map_const.hash_function()(3)), -3);
+    
+    /**
+     * contains
+     */
+    BOOST_CHECK(map.contains(3, map.hash_function()(3)));
+    BOOST_CHECK(map_const.contains(3, map_const.hash_function()(3)));
     
     /**
      * count
