@@ -223,13 +223,12 @@ private:
 class prime_growth_policy {
 public:
     explicit prime_growth_policy(std::size_t& min_bucket_count_in_out) {
-        auto it_prime = std::lower_bound(PRIMES.begin(), 
-                                         PRIMES.end(), min_bucket_count_in_out);
-        if(it_prime == PRIMES.end()) {
-            throw std::length_error("The hash table exceeds its maxmimum size.");
+        auto it_prime = std::lower_bound(primes().begin(), primes().end(), min_bucket_count_in_out);
+        if(it_prime == primes().end()) {
+            throw std::length_error("The hash table exceeds its maximum size.");
         }
         
-        m_iprime = static_cast<unsigned int>(std::distance(PRIMES.begin(), it_prime));
+        m_iprime = static_cast<unsigned int>(std::distance(primes().begin(), it_prime));
         if(min_bucket_count_in_out > 0) {
             min_bucket_count_in_out = *it_prime;
         }
@@ -239,19 +238,19 @@ public:
     }
     
     std::size_t bucket_for_hash(std::size_t hash) const noexcept {
-        return MOD_PRIME[m_iprime](hash);
+        return mod_prime()[m_iprime](hash);
     }
     
     std::size_t next_bucket_count() const {
-        if(m_iprime + 1 >= PRIMES.size()) {
-            throw std::length_error("The hash table exceeds its maxmimum size.");
+        if(m_iprime + 1 >= primes().size()) {
+            throw std::length_error("The hash table exceeds its maximum size.");
         }
         
-        return PRIMES[m_iprime + 1];
+        return primes()[m_iprime + 1];
     }   
     
     std::size_t max_bucket_count() const {
-        return PRIMES.back();
+        return primes().back();
     }
     
     void clear() noexcept {
@@ -259,29 +258,40 @@ public:
     }
     
 private:
-    static constexpr const std::array<std::size_t, 40> PRIMES = {{
-        1ul, 5ul, 17ul, 29ul, 37ul, 53ul, 67ul, 79ul, 97ul, 131ul, 193ul, 257ul, 389ul, 521ul, 769ul, 1031ul, 
-        1543ul, 2053ul, 3079ul, 6151ul, 12289ul, 24593ul, 49157ul, 98317ul, 196613ul, 393241ul, 786433ul, 
-        1572869ul, 3145739ul, 6291469ul, 12582917ul, 25165843ul, 50331653ul, 100663319ul, 201326611ul, 
-        402653189ul, 805306457ul, 1610612741ul, 3221225473ul, 4294967291ul
-    }};
+    static const std::array<std::size_t, 40>& primes() {
+        static const std::array<std::size_t, 40> PRIMES = {{
+            1ul, 5ul, 17ul, 29ul, 37ul, 53ul, 67ul, 79ul, 97ul, 131ul, 193ul, 257ul, 389ul, 521ul, 769ul, 1031ul,
+            1543ul, 2053ul, 3079ul, 6151ul, 12289ul, 24593ul, 49157ul, 98317ul, 196613ul, 393241ul, 786433ul,
+            1572869ul, 3145739ul, 6291469ul, 12582917ul, 25165843ul, 50331653ul, 100663319ul, 201326611ul,
+            402653189ul, 805306457ul, 1610612741ul, 3221225473ul, 4294967291ul
+        }};
+        
+        static_assert(std::numeric_limits<decltype(m_iprime)>::max() >= PRIMES.size(),
+                      "The type of m_iprime is not big enough.");
+        
+        return PRIMES;
+    }
+
+    static const std::array<std::size_t(*)(std::size_t), 40>& mod_prime() {
+        // MOD_PRIME[iprime](hash) returns hash % PRIMES[iprime]. This table allows for faster modulo as the
+        // compiler can optimize the modulo code better with a constant known at the compilation.
+        static const std::array<std::size_t(*)(std::size_t), 40> MOD_PRIME = {{
+            &mod<0>, &mod<1>, &mod<2>, &mod<3>, &mod<4>, &mod<5>, &mod<6>, &mod<7>, &mod<8>, &mod<9>, &mod<10>,
+            &mod<11>, &mod<12>, &mod<13>, &mod<14>, &mod<15>, &mod<16>, &mod<17>, &mod<18>, &mod<19>, &mod<20>,
+            &mod<21>, &mod<22>, &mod<23>, &mod<24>, &mod<25>, &mod<26>, &mod<27>, &mod<28>, &mod<29>, &mod<30>,
+            &mod<31>, &mod<32>, &mod<33>, &mod<34>, &mod<35>, &mod<36>, &mod<37> , &mod<38>, &mod<39>
+        }};
+        
+        return MOD_PRIME;
+    }
 
     template<unsigned int IPrime>
-    static constexpr std::size_t mod(std::size_t hash) { return hash % PRIMES[IPrime]; }
-
-    // MOD_PRIME[iprime](hash) returns hash % PRIMES[iprime]. This table allows for faster modulo as the
-    // compiler can optimize the modulo code better with a constant known at the compilation.
-    static constexpr const std::array<std::size_t(*)(std::size_t), 40> MOD_PRIME = {{ 
-        &mod<0>, &mod<1>, &mod<2>, &mod<3>, &mod<4>, &mod<5>, &mod<6>, &mod<7>, &mod<8>, &mod<9>, &mod<10>, 
-        &mod<11>, &mod<12>, &mod<13>, &mod<14>, &mod<15>, &mod<16>, &mod<17>, &mod<18>, &mod<19>, &mod<20>, 
-        &mod<21>, &mod<22>, &mod<23>, &mod<24>, &mod<25>, &mod<26>, &mod<27>, &mod<28>, &mod<29>, &mod<30>, 
-        &mod<31>, &mod<32>, &mod<33>, &mod<34>, &mod<35>, &mod<36>, &mod<37> , &mod<38>, &mod<39>
-    }};
-
-    unsigned int m_iprime;
+    static std::size_t mod(std::size_t hash) {
+        return hash % primes()[IPrime];
+    }
     
-    static_assert(std::numeric_limits<decltype(m_iprime)>::max() >= PRIMES.size(), 
-                  "The type of m_iprime is not big enough.");
+private:
+    unsigned int m_iprime;
 }; 
 
 }
