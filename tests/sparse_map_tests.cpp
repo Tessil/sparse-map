@@ -1,7 +1,7 @@
 /**
  * MIT License
  * 
- * Copyright (c) 2017 Tessil
+ * Copyright (c) 2017 Thibaut Goetghebuer-Planchon <tessil@gmx.com>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -963,7 +963,7 @@ BOOST_AUTO_TEST_CASE(test_swap_empty) {
 /**
  * serialize and deserialize
  */
-BOOST_AUTO_TEST_CASE(test_serialize_desearialize_empty) {
+BOOST_AUTO_TEST_CASE(test_serialize_deserialize_empty) {
     // serialize empty map; deserialize in new map; check equal.
     // for deserialization, test it with and without hash compatibility.
     const tsl::sparse_map<std::string, move_only_test> empty_map(0);
@@ -981,7 +981,7 @@ BOOST_AUTO_TEST_CASE(test_serialize_desearialize_empty) {
     BOOST_CHECK(empty_map_deserialized == empty_map);
 }
 
-BOOST_AUTO_TEST_CASE(test_serialize_desearialize) {
+BOOST_AUTO_TEST_CASE(test_serialize_deserialize) {
     // insert x values; delete some values; serialize map; deserialize in new map; check equal.
     // for deserialization, test it with and without hash compatibility.
     const std::size_t nb_values = 1000;
@@ -1011,7 +1011,7 @@ BOOST_AUTO_TEST_CASE(test_serialize_desearialize) {
     BOOST_CHECK(map_deserialized == map);
 }
 
-BOOST_AUTO_TEST_CASE(test_serialize_desearialize_with_different_hash) {
+BOOST_AUTO_TEST_CASE(test_serialize_deserialize_with_different_hash) {
     // insert x values; serialize map; deserialize in new map which has a different hash; check equal
     struct hash_str_diff {
         std::size_t operator()(const std::string& str) const {
@@ -1125,12 +1125,12 @@ BOOST_AUTO_TEST_CASE(test_operations_with_all_buckets_marked_as_deleted_or_with_
      * Map full of buckets marked as deleted or with a value. Check that find, erase and insert operations work well.
      */
     
-    // Find inexisting values.
+    // Find inexistent values.
     for(unsigned int i = 0; i < 14; i++) {
         BOOST_CHECK(map.find(i) == map.end());
     }
     
-    // Erase inexisting values.
+    // Erase inexistent values.
     for(unsigned int i = 0; i < 14; i++) {
         BOOST_CHECK_EQUAL(map.erase(i), 0);
     }

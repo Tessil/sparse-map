@@ -1,7 +1,7 @@
 /**
  * MIT License
  * 
- * Copyright (c) 2017 Tessil
+ * Copyright (c) 2017 Thibaut Goetghebuer-Planchon <tessil@gmx.com>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -287,7 +287,7 @@ static T deserialize_value(Deserializer& deserializer) {
  * we don't need such big types.
  * 
  * 
- * T must be nothrow move contructible and/or copy constructible.
+ * T must be nothrow move constructible and/or copy constructible.
  * Behaviour is undefined if the destructor of T throws an exception.
  * 
  * See https://smerity.com/articles/2015/google_sparsehash.html for details on the idea behinds the implementation.
@@ -310,8 +310,8 @@ private:
                                                   
     /**
      * Bitmap size configuration.
-     * Use 32 bits for the bitmap on 32-bits or less environnements as popcount on 64 bits numbers is slow on 
-     * these environnements. Use 64 bits bitmap otherwise.
+     * Use 32 bits for the bitmap on 32-bits or less environnement as popcount on 64 bits numbers is slow on 
+     * these environnement. Use 64 bits bitmap otherwise.
      */
 #if SIZE_MAX <= UINT32_MAX
     using bitmap_type = std::uint_least32_t;
@@ -710,7 +710,7 @@ private:
      * - Either we are in a situation where std::is_nothrow_move_constructible<value_type>::value is true.
      *   In this case, on insertion we just reallocate m_values when we reach 
      *   its capacity (i.e. m_nb_elements == m_capacity), otherwise we just put the new value at its 
-     *   appropriate place. We can easly keep the strong exception guarantee as moving the values around is safe.
+     *   appropriate place. We can easily keep the strong exception guarantee as moving the values around is safe.
      * - Otherwise we are in a situation where std::is_nothrow_move_constructible<value_type>::value is false.
      *   In this case on EACH insertion we allocate a new area of m_nb_elements + 1 where we copy the values
      *   of m_values into it and put the new value there. On success, we set m_values to this new area.
@@ -912,7 +912,7 @@ private:
  * 
  * The strong exception guarantee only holds if `ExceptionSafety` is set to `tsl::sh::exception_safety::strong`.
  * 
- * `ValueType` must be nothrow move contructible and/or copy constructible.
+ * `ValueType` must be nothrow move constructible and/or copy constructible.
  * Behaviour is undefined if the destructor of `ValueType` throws.
  * 
  * 
@@ -1102,7 +1102,7 @@ public:
                                         m_nb_deleted_buckets(0)
     {
         if(m_bucket_count > max_bucket_count()) {
-            throw std::length_error("The map exceeds its maxmimum size.");
+            throw std::length_error("The map exceeds its maximum size.");
         }
         
         if(m_bucket_count > 0) {
@@ -1129,7 +1129,7 @@ public:
         this->max_load_factor(max_load_factor);
         
         
-        // Check in the constructor instead of outside of a function to avoi compilation issues
+        // Check in the constructor instead of outside of a function to avoid compilation issues
         // when value_type is not complete.
         static_assert(std::is_nothrow_move_constructible<value_type>::value ||
                       std::is_copy_constructible<value_type>::value, 
@@ -2070,7 +2070,7 @@ private:
             
             
             if(load_factor() > this->max_load_factor()) {
-                throw std::runtime_error("Invalid max_load_factor. Check that the serializer and deserializer supports "
+                throw std::runtime_error("Invalid max_load_factor. Check that the serializer and deserializer support "
                                          "floats correctly as they can be converted implicitely to ints.");
             }
         }

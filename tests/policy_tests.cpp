@@ -1,7 +1,7 @@
 /**
  * MIT License
  * 
- * Copyright (c) 2017 Tessil
+ * Copyright (c) 2017 Thibaut Goetghebuer-Planchon <tessil@gmx.com>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -71,7 +71,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_policy, Policy, test_types) {
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(test_policy_min_bucket_count, Policy, test_types) {
-    // Check polcy when a bucket_count of 0 is asked.
+    // Check policy when a bucket_count of 0 is asked.
     std::size_t bucket_count = 0;
     Policy policy(bucket_count);
     

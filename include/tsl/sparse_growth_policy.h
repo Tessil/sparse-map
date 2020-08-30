@@ -1,7 +1,7 @@
 /**
  * MIT License
  * 
- * Copyright (c) 2017 Tessil
+ * Copyright (c) 2017 Thibaut Goetghebuer-Planchon <tessil@gmx.com>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -57,7 +57,7 @@ public:
      */
     explicit power_of_two_growth_policy(std::size_t& min_bucket_count_in_out) {
         if(min_bucket_count_in_out > max_bucket_count()) {
-            throw std::length_error("The hash table exceeds its maxmimum size.");
+            throw std::length_error("The hash table exceeds its maximum size.");
         }
         
         if(min_bucket_count_in_out > 0) {
@@ -82,7 +82,7 @@ public:
      */
     std::size_t next_bucket_count() const {
         if((m_mask + 1) > max_bucket_count() / GrowthFactor) {
-            throw std::length_error("The hash table exceeds its maxmimum size.");
+            throw std::length_error("The hash table exceeds its maximum size.");
         }
         
         return (m_mask + 1) * GrowthFactor;
@@ -142,7 +142,7 @@ class mod_growth_policy {
 public:
     explicit mod_growth_policy(std::size_t& min_bucket_count_in_out) {
         if(min_bucket_count_in_out > max_bucket_count()) {
-            throw std::length_error("The hash table exceeds its maxmimum size.");
+            throw std::length_error("The hash table exceeds its maximum size.");
         }
         
         if(min_bucket_count_in_out > 0) {
@@ -159,12 +159,12 @@ public:
     
     std::size_t next_bucket_count() const {
         if(m_mod == max_bucket_count()) {
-            throw std::length_error("The hash table exceeds its maxmimum size.");
+            throw std::length_error("The hash table exceeds its maximum size.");
         }
         
         const double next_bucket_count = std::ceil(double(m_mod) * REHASH_SIZE_MULTIPLICATION_FACTOR);
         if(!std::isnormal(next_bucket_count)) {
-            throw std::length_error("The hash table exceeds its maxmimum size.");
+            throw std::length_error("The hash table exceeds its maximum size.");
         }
         
         if(next_bucket_count > double(max_bucket_count())) {
@@ -218,7 +218,7 @@ private:
  * Due to the constant variable in the modulo the compiler is able to optimize the operation
  * by a series of multiplications, substractions and shifts. 
  * 
- * The 'hash % 5' could become something like 'hash - (hash * 0xCCCCCCCD) >> 34) * 5' in a 64 bits environement.
+ * The 'hash % 5' could become something like 'hash - (hash * 0xCCCCCCCD) >> 34) * 5' in a 64 bits environment.
  */
 class prime_growth_policy {
 public:
