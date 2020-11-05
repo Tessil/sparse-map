@@ -359,7 +359,10 @@ public:
         return static_cast<typename sparse_array::size_type>(ibucket & sparse_array::BUCKET_MASK);
     }
     
-    
+    static std::size_t nb_sparse_buckets(std::size_t bucket_count) noexcept {
+        return std::max<std::size_t>(1, sparse_ibucket(tsl::detail_sparse_hash::round_up_to_power_of_two(bucket_count)));
+    }
+
 public:
     sparse_array() noexcept: m_values(nullptr), m_bitmap_vals(0), m_bitmap_deleted_vals(0), 
                              m_nb_elements(0), m_capacity(0), m_last_array(false)
@@ -663,7 +666,7 @@ private:
             return static_cast<size_type>(tsl::detail_popcount::popcountll(val));
         }
     }
-    
+
     size_type index_to_offset(size_type index) const noexcept {
         tsl_sh_assert(index < BITMAP_NB_BITS);
         return popcount(m_bitmap_vals & ((bitmap_type(1) << index) - bitmap_type(1)));
@@ -1114,11 +1117,7 @@ public:
             * We can't use `vector(size_type count, const T& value, const Allocator& alloc)` as it requires the
             * value T to be copyable.
             */
-            const size_type nb_sparse_buckets = 
-                    std::max(size_type(1), 
-                             sparse_array::sparse_ibucket(tsl::detail_sparse_hash::round_up_to_power_of_two(bucket_count)));
-                    
-            m_sparse_buckets_data.resize(nb_sparse_buckets);
+            m_sparse_buckets_data.resize(sparse_array::nb_sparse_buckets(bucket_count));
             m_sparse_buckets = m_sparse_buckets_data.data();
             
             tsl_sh_assert(!m_sparse_buckets_data.empty());
@@ -2050,7 +2049,7 @@ private:
                 throw std::runtime_error("The GrowthPolicy is not the same even though hash_compatible is true.");
             }
             
-            if(nb_sparse_buckets != sparse_array::sparse_ibucket(tsl::detail_sparse_hash::round_up_to_power_of_two(m_bucket_count))) {
+            if(nb_sparse_buckets != sparse_array::nb_sparse_buckets(m_bucket_count)) {
                 throw std::runtime_error("Deserialized nb_sparse_buckets is invalid.");
             }
             
