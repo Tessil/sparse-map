@@ -2025,6 +2025,11 @@ private:
         const slz_size_type nb_deleted_buckets = deserialize_value<slz_size_type>(deserializer);
         const float max_load_factor = deserialize_value<float>(deserializer);
         
+        if(hash_compatible) {
+            // Set bucket count before recalculating load factors
+            m_bucket_count = numeric_cast<size_type>(bucket_count_ds, "Deserialized bucket_count is too big.");
+        }
+
         
         this->max_load_factor(max_load_factor);
         
@@ -2041,8 +2046,6 @@ private:
             }
         }
         else {
-            m_bucket_count = numeric_cast<size_type>(bucket_count_ds, "Deserialized bucket_count is too big.");
-            
             GrowthPolicy::operator=(GrowthPolicy(m_bucket_count));
             // GrowthPolicy should not modify the bucket count we got from deserialization
             if(m_bucket_count != bucket_count_ds) {
