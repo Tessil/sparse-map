@@ -2024,28 +2024,27 @@ private:
         const slz_size_type nb_elements = deserialize_value<slz_size_type>(deserializer);
         const slz_size_type nb_deleted_buckets = deserialize_value<slz_size_type>(deserializer);
         const float max_load_factor = deserialize_value<float>(deserializer);
-        
-        if(hash_compatible) {
-            // Set bucket count before recalculating load factors
-            m_bucket_count = numeric_cast<size_type>(bucket_count_ds, "Deserialized bucket_count is too big.");
-        }
 
-        
-        this->max_load_factor(max_load_factor);
-        
         if(bucket_count_ds == 0) {
+            this->max_load_factor(max_load_factor);
+
             tsl_sh_assert(nb_elements == 0 && nb_sparse_buckets == 0);
             return;
         }
-        
-        
+
+
         if(!hash_compatible) {
+            this->max_load_factor(max_load_factor);
+
             reserve(numeric_cast<size_type>(nb_elements, "Deserialized nb_elements is too big."));
             for(slz_size_type ibucket = 0; ibucket < nb_sparse_buckets; ibucket++) {
                 sparse_array::deserialize_values_into_sparse_hash(deserializer, *this);
             }
         }
         else {
+            m_bucket_count = numeric_cast<size_type>(bucket_count_ds, "Deserialized bucket_count is too big.");
+            this->max_load_factor(max_load_factor);
+
             GrowthPolicy::operator=(GrowthPolicy(m_bucket_count));
             // GrowthPolicy should not modify the bucket count we got from deserialization
             if(m_bucket_count != bucket_count_ds) {
