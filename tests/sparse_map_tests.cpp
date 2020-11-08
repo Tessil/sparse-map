@@ -982,6 +982,9 @@ BOOST_AUTO_TEST_CASE(test_serialize_deserialize_empty) {
 }
 
 BOOST_AUTO_TEST_CASE(test_serialize_deserialize_few) {
+    // insert x values that fits into one sparse bucket; delete some values; serialize map; 
+    // deserialize in new map; check equal. for deserialization, test it with and without
+    // hash compatibility.
     const tsl::sparse_map<std::int64_t, std::int64_t> map{{10, 100}, {4, 14}, {9, 201}};
 
     serializer serial;
