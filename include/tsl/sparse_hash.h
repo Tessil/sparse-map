@@ -359,7 +359,14 @@ public:
         return static_cast<typename sparse_array::size_type>(ibucket & sparse_array::BUCKET_MASK);
     }
     
-    
+    static std::size_t nb_sparse_buckets(std::size_t bucket_count) noexcept {
+        if(bucket_count == 0) {
+            return 0;
+        }
+
+        return std::max<std::size_t>(1, sparse_ibucket(tsl::detail_sparse_hash::round_up_to_power_of_two(bucket_count)));
+    }
+
 public:
     sparse_array() noexcept: m_values(nullptr), m_bitmap_vals(0), m_bitmap_deleted_vals(0), 
                              m_nb_elements(0), m_capacity(0), m_last_array(false)
@@ -663,7 +670,7 @@ private:
             return static_cast<size_type>(tsl::detail_popcount::popcountll(val));
         }
     }
-    
+
     size_type index_to_offset(size_type index) const noexcept {
         tsl_sh_assert(index < BITMAP_NB_BITS);
         return popcount(m_bitmap_vals & ((bitmap_type(1) << index) - bitmap_type(1)));
@@ -1114,11 +1121,7 @@ public:
             * We can't use `vector(size_type count, const T& value, const Allocator& alloc)` as it requires the
             * value T to be copyable.
             */
-            const size_type nb_sparse_buckets = 
-                    std::max(size_type(1), 
-                             sparse_array::sparse_ibucket(tsl::detail_sparse_hash::round_up_to_power_of_two(bucket_count)));
-                    
-            m_sparse_buckets_data.resize(nb_sparse_buckets);
+            m_sparse_buckets_data.resize(sparse_array::nb_sparse_buckets(bucket_count));
             m_sparse_buckets = m_sparse_buckets_data.data();
             
             tsl_sh_assert(!m_sparse_buckets_data.empty());
@@ -2025,17 +2028,10 @@ private:
         const slz_size_type nb_elements = deserialize_value<slz_size_type>(deserializer);
         const slz_size_type nb_deleted_buckets = deserialize_value<slz_size_type>(deserializer);
         const float max_load_factor = deserialize_value<float>(deserializer);
-        
-        
-        this->max_load_factor(max_load_factor);
-        
-        if(bucket_count_ds == 0) {
-            tsl_sh_assert(nb_elements == 0 && nb_sparse_buckets == 0);
-            return;
-        }
-        
-        
+
+
         if(!hash_compatible) {
+            this->max_load_factor(max_load_factor);
             reserve(numeric_cast<size_type>(nb_elements, "Deserialized nb_elements is too big."));
             for(slz_size_type ibucket = 0; ibucket < nb_sparse_buckets; ibucket++) {
                 sparse_array::deserialize_values_into_sparse_hash(deserializer, *this);
@@ -2050,25 +2046,24 @@ private:
                 throw std::runtime_error("The GrowthPolicy is not the same even though hash_compatible is true.");
             }
             
-            if(nb_sparse_buckets != sparse_array::sparse_ibucket(tsl::detail_sparse_hash::round_up_to_power_of_two(m_bucket_count))) {
+            if(nb_sparse_buckets != sparse_array::nb_sparse_buckets(m_bucket_count)) {
                 throw std::runtime_error("Deserialized nb_sparse_buckets is invalid.");
             }
-            
             
             m_nb_elements = numeric_cast<size_type>(nb_elements, "Deserialized nb_elements is too big.");
             m_nb_deleted_buckets = numeric_cast<size_type>(nb_deleted_buckets, "Deserialized nb_deleted_buckets is too big.");
             
-            tsl_sh_assert(nb_sparse_buckets > 0);
             m_sparse_buckets_data.reserve(numeric_cast<size_type>(nb_sparse_buckets, "Deserialized nb_sparse_buckets is too big."));
-            
             for(slz_size_type ibucket = 0; ibucket < nb_sparse_buckets; ibucket++) {
                 m_sparse_buckets_data.emplace_back(sparse_array::deserialize_hash_compatible(deserializer, static_cast<Allocator&>(*this)));
             }
             
-            m_sparse_buckets_data.back().set_as_last();
-            m_sparse_buckets = m_sparse_buckets_data.data();
+            if(!m_sparse_buckets_data.empty()) {
+                m_sparse_buckets_data.back().set_as_last();
+                m_sparse_buckets = m_sparse_buckets_data.data();
+            }
             
-            
+            this->max_load_factor(max_load_factor);
             if(load_factor() > this->max_load_factor()) {
                 throw std::runtime_error("Invalid max_load_factor. Check that the serializer and deserializer support "
                                          "floats correctly as they can be converted implicitely to ints.");
