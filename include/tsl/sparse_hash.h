@@ -954,6 +954,20 @@ class sparse_array {
   bool m_last_array;
 };
 
+template <typename T, bool IsConst>
+struct constify {
+};
+
+template <typename T>
+struct constify<T, false> {
+  using type = T;
+};
+
+template <typename T>
+struct constify<T, true> {
+  using type = const T;
+};
+
 /**
  * Internal common class used by `sparse_map` and `sparse_set`.
  *
@@ -1064,7 +1078,7 @@ class sparse_hash : private Allocator,
 
    public:
     using iterator_category = std::forward_iterator_tag;
-    using value_type = const typename sparse_hash::value_type;
+    using value_type = typename constify<ValueType, IsConst>::type;
     using difference_type = std::ptrdiff_t;
     using reference = value_type &;
     using pointer = value_type *;

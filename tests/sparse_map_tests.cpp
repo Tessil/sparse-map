@@ -1354,4 +1354,27 @@ BOOST_AUTO_TEST_CASE(test_precalculated_hash) {
   BOOST_CHECK_EQUAL(map.erase(3, map.hash_function()(3)), 1);
 }
 
+/**
+ * Test for correct value const-ness
+ * This is a compilation test, not a behavior test.
+ */
+BOOST_AUTO_TEST_CASE(test_iterator_constness) {
+  using map_type = tsl::sparse_map<int, int>;
+
+  map_type map;
+  map.insert(std::make_pair(0, 1));
+
+  auto it = map.find(0);
+  int* int_ptr = &it->second;
+  BOOST_CHECK_EQUAL(*int_ptr, 1);
+
+  const map_type* map_ptr = &map;
+  auto const_it = map_ptr->find(0);
+  auto const_int_ptr = &const_it->second;
+  static_assert(
+    std::is_same<decltype(const_int_ptr), const int*>::value == true,
+    "const iterator should have const value type"
+  );
+}
+
 BOOST_AUTO_TEST_SUITE_END()
