@@ -437,6 +437,9 @@ class sparse_array {
         m_capacity(0),
         m_last_array(false) {}
 
+  //needed for "is_constructible" with no parameters
+  sparse_array(std::allocator_arg_t, Allocator const&) noexcept : sparse_array() {}
+
   explicit sparse_array(bool last_bucket) noexcept
       : m_values(nullptr),
         m_bitmap_vals(0),
@@ -445,7 +448,8 @@ class sparse_array {
         m_capacity(0),
         m_last_array(last_bucket) {}
 
-  sparse_array(size_type capacity, Allocator &alloc)
+  //const Allocator needed for MoveInsertable requirement
+  sparse_array(size_type capacity, Allocator const &const_alloc)
       : m_values(nullptr),
         m_bitmap_vals(0),
         m_bitmap_deleted_vals(0),
@@ -453,13 +457,15 @@ class sparse_array {
         m_capacity(capacity),
         m_last_array(false) {
     if (m_capacity > 0) {
+      auto alloc = const_cast<Allocator&>(const_alloc);
       m_values = alloc.allocate(m_capacity);
       tsl_sh_assert(m_values !=
                     nullptr);  // allocate should throw if there is a failure
     }
   }
 
-  sparse_array(const sparse_array &other, Allocator &alloc)
+  //const Allocator needed for MoveInsertable requirement
+  sparse_array(const sparse_array &other, Allocator const &const_alloc)
       : m_values(nullptr),
         m_bitmap_vals(other.m_bitmap_vals),
         m_bitmap_deleted_vals(other.m_bitmap_deleted_vals),
@@ -471,6 +477,7 @@ class sparse_array {
       return;
     }
 
+    auto alloc = const_cast<Allocator&>(const_alloc);
     m_values = alloc.allocate(m_capacity);
     tsl_sh_assert(m_values !=
                   nullptr);  // allocate should throw if there is a failure
@@ -499,7 +506,8 @@ class sparse_array {
     other.m_capacity = 0;
   }
 
-  sparse_array(sparse_array &&other, Allocator &alloc)
+  //const Allocator needed for MoveInsertable requirement
+  sparse_array(sparse_array &&other, Allocator const &const_alloc)
       : m_values(nullptr),
         m_bitmap_vals(other.m_bitmap_vals),
         m_bitmap_deleted_vals(other.m_bitmap_deleted_vals),
@@ -511,6 +519,7 @@ class sparse_array {
       return;
     }
 
+    auto alloc = const_cast<Allocator&>(const_alloc);
     m_values = alloc.allocate(m_capacity);
     tsl_sh_assert(m_values !=
                   nullptr);  // allocate should throw if there is a failure
