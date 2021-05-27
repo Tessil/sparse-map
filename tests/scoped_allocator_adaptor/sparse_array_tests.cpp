@@ -52,38 +52,32 @@ template <typename T> void trailing_allocator_convention_without_parameters() {
   BOOST_REQUIRE((std::is_constructible<typename T::Array, const Alloc &>::value));
 }
 
-/** This test creates a memory leak.
- * However it is only one single sparse_array and with this, the test is
- * simpler.
- */
 template <typename T>
 void is_move_insertable(std::initializer_list<typename T::value_type> l) {
   using A = typename std::allocator_traits<
       typename T::Allocator>::template rebind_alloc<typename T::Array>;
   A m;
-  auto p = m.allocate(1);
+  auto p = std::allocator_traits<A>::allocate(m, 1);
   typename T::Allocator ArrayAlloc;
   typename T::Array rv(MAX_INDEX, ArrayAlloc);
   std::size_t counter = 0;
   for (auto const &value : l) {
     rv.set(ArrayAlloc, counter++, value);
   }
-  std::cout << "Before\n";
   std::allocator_traits<A>::construct(m, p, std::move(rv));
-  std::cout << "After\n";
   rv.clear(ArrayAlloc);
+  p->clear(ArrayAlloc);
+  std::allocator_traits<A>::destroy(m, p);
+  std::allocator_traits<A>::deallocate(m, p, 1);
 }
 
-/** This test creates a memory leak.
- * However it is only one single sparse_array and with this, the test is
- * simpler.
- */
 template <typename T> void is_default_insertable() {
   using A = typename std::allocator_traits<
       typename T::Allocator>::template rebind_alloc<typename T::Array>;
   A m;
-  typename T::Array *p = m.allocate(1);
+  typename T::Array *p = std::allocator_traits<A>::allocate(m, 1);
   std::allocator_traits<A>::construct(m, p);
+  std::allocator_traits<A>::deallocate(m, p, 1);
 }
 
 template <typename T, tsl::sh::sparsity Sparsity = tsl::sh::sparsity::medium>
