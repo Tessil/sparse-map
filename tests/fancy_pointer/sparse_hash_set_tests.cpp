@@ -54,21 +54,24 @@ template <typename T>
 void insert(std::initializer_list<typename T::value_type> l) {
     auto set = details::default_construct_set<T>();
     for (auto const& i: l)  set.insert(i);
-    BOOST_TEST_REQUIRE(details::is_equal(set, l), "'insert' did not create exactly the values needed");
+    //'insert' did not create exactly the values needed
+    BOOST_REQUIRE(details::is_equal(set, l));
 }
 
 template <typename T>
 void iterator_insert(std::initializer_list<typename T::value_type> l) {
    auto set = details::default_construct_set<T>();
    set.insert(l.begin(), l.end());
-   BOOST_TEST_REQUIRE(details::is_equal(set, l), "'insert' with iterators did not create exactly the values needed");
+   //'insert' with iterators did not create exactly the values needed
+   BOOST_REQUIRE(details::is_equal(set, l));
 }
 
 template <typename T>
 void iterator_access(typename T::value_type single_value) {
     auto set = details::default_construct_set<T>();
     set.insert(single_value);
-    BOOST_TEST_REQUIRE(*(set.begin()) == single_value, "iterator cannot access single value");
+    //iterator cannot access single value
+    BOOST_REQUIRE(*(set.begin()) == single_value);
 }
 
 template <typename T>
@@ -79,9 +82,9 @@ void iterator_access_multi(std::initializer_list<typename T::value_type> l) {
     std::vector<typename T::value_type> set_sorted(set.begin(), set.end());
     std::sort(l_sorted.begin(), l_sorted.end());
     std::sort(set_sorted.begin(), set_sorted.end());
-    BOOST_TEST_REQUIRE(std::equal(l_sorted.begin(), l_sorted.end(),
-                                  set_sorted.begin()),
-                       "iterating over the set didn't work");
+    //iterating over the set didn't work
+    BOOST_REQUIRE(std::equal(l_sorted.begin(), l_sorted.end(),
+                                  set_sorted.begin()));
 }
 
 
@@ -93,9 +96,9 @@ void const_iterator_access_multi(std::initializer_list<typename T::value_type> l
     std::vector<typename T::value_type> set_sorted(set.cbegin(), set.cend());
     std::sort(l_sorted.begin(), l_sorted.end());
     std::sort(set_sorted.begin(), set_sorted.end());
-    BOOST_TEST_REQUIRE(std::equal(l_sorted.begin(), l_sorted.end(),
-                                  set_sorted.begin()),
-                       "const iterating over the set didn't work");
+    //const iterating over the set didn't work
+    BOOST_REQUIRE(std::equal(l_sorted.begin(), l_sorted.end(),
+                                  set_sorted.begin()));
 }
 
 template <typename T>
@@ -104,7 +107,8 @@ void find(std::initializer_list<typename T::value_type> l, typename T::value_typ
   set.insert(l.begin(), l.end());
   auto iter = set.find(search_value);
   bool found = iter != set.end();
-  BOOST_TEST_REQUIRE((found == is_in_list), "find did not work as expected");
+  //find did not work as expected
+  BOOST_REQUIRE((found == is_in_list));
 }
 
 template <typename T>
@@ -116,7 +120,8 @@ void erase(std::initializer_list<typename T::value_type> l, typename T::value_ty
     auto iter = set.begin();
     for(; *iter != extra_value; ++iter);
     set.erase(iter);
-    BOOST_TEST_REQUIRE(details::is_equal(set, l), "erase did not work as expected");
+    //erase did not work as expected
+    BOOST_REQUIRE(details::is_equal(set, l));
 }
 
 template <typename T>
@@ -128,7 +133,8 @@ void erase_with_const_iter(std::initializer_list<typename T::value_type> l, type
     auto iter = set.cbegin();
     for(; *iter != extra_value; ++iter);
     set.erase(iter);
-    BOOST_TEST_REQUIRE(details::is_equal(set, l), "erase did not work as expected");
+    //erase did not work as expected
+    BOOST_REQUIRE(details::is_equal(set, l));
 }
 
 
@@ -177,8 +183,10 @@ BOOST_AUTO_TEST_CASE(full_set) {
     std::vector<int> data = {1,2,3,4,5,6,7,8,9};
     set.insert(data.begin(), data.end());
     auto check = [&set](int d) {return set.contains(d);};
-    BOOST_TEST_REQUIRE(data.size() == set.size(), "size did not match");
-    BOOST_TEST_REQUIRE(std::all_of(data.begin(), data.end(), check), "Set did not contain all values");
+    //size did not match
+    BOOST_REQUIRE(data.size() == set.size());
+    //Set did not contain all values
+    BOOST_REQUIRE(std::all_of(data.begin(), data.end(), check));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -28,31 +28,28 @@ void set(std::initializer_list<typename T::value_type> l) {
     array.set(a, counter++, value);
     check.emplace_back(value);
   }
-  BOOST_TEST_REQUIRE(std::equal(array.begin(), array.end(), check.begin()),
-                     "'set' did not create the correct order of items");
+  //'set' did not create the correct order of items
+  BOOST_REQUIRE(std::equal(array.begin(), array.end(), check.begin()));
   array.clear(a);
 }
 
 template <typename T> void uses_allocator() {
-  BOOST_TEST_REQUIRE(
-      (std::uses_allocator<typename T::Array, typename T::Allocator>::value),
-      "uses_allocator returns false");
+  //uses_allocator returns false
+  BOOST_REQUIRE((std::uses_allocator<typename T::Array, typename T::Allocator>::value));
 }
 
 template <typename T, typename... Args>
 void trailing_allocator_convention(Args...) {
   using Alloc = typename T::Allocator;
-  BOOST_TEST_REQUIRE(
-      (std::is_constructible<typename T::Array, Args..., const Alloc &>::value),
-      "trailing_allocator thinks construction is not possible");
+  //trailing_allocator thinks construction is not possible
+  BOOST_REQUIRE((std::is_constructible<typename T::Array, Args..., const Alloc &>::value));
 }
 
 template <typename T> void trailing_allocator_convention_without_parameters() {
   using Alloc = typename std::allocator_traits<
       typename T::Allocator>::template rebind_alloc<typename T::Array>;
-  BOOST_TEST_REQUIRE(
-      (std::is_constructible<typename T::Array, const Alloc &>::value),
-      "trailing_allocator thinks construction is not possible");
+  //trailing_allocator thinks construction is not possible
+  BOOST_REQUIRE((std::is_constructible<typename T::Array, const Alloc &>::value));
 }
 
 /** This test creates a memory leak.

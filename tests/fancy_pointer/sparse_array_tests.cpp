@@ -51,8 +51,8 @@ void set() {
     typename T::Allocator a;
     auto test = details::generate_test_array<T>(a);
     auto check = details::generate_check_for_test_array<T>();
-    BOOST_TEST_REQUIRE(std::equal(test.begin(), test.end(), check.begin()),
-                       "'set' did not create the correct order of items");
+    //'set' did not create the correct order of items
+    BOOST_REQUIRE(std::equal(test.begin(), test.end(), check.begin()));
     test.clear(a); //needed because destructor asserts
 }
 
@@ -63,8 +63,8 @@ void copy_construction() {
     auto test = details::generate_test_array<T>(a);
     typename T::Array copy(test, a);
     auto check = details::generate_check_for_test_array<T>();
-    BOOST_TEST_REQUIRE(std::equal(copy.begin(), copy.end(), check.begin()),
-                       "'copy' changed the order of the items");
+    //'copy' changed the order of the items
+    BOOST_REQUIRE(std::equal(copy.begin(), copy.end(), check.begin()));
     test.clear(a);
     copy.clear(a);
 }
@@ -76,8 +76,8 @@ void move_construction() {
     auto moved_from = details::generate_test_array<T>(a);
     typename T::Array moved_to(std::move(moved_from));
     auto check = details::generate_check_for_test_array<T>();
-    BOOST_TEST_REQUIRE(std::equal(moved_to.begin(), moved_to.end(), check.begin()),
-                       "'move' changed the order of the items");
+    //'move' changed the order of the items
+    BOOST_REQUIRE(std::equal(moved_to.begin(), moved_to.end(), check.begin()));
     moved_to.clear(a);
 }
 
@@ -86,8 +86,8 @@ void const_iterator() {
     typename T::Allocator a;
     auto test = details::generate_test_array<T>(a);
     auto const_iter = test.cbegin();
-    BOOST_TEST_REQUIRE((std::is_same<decltype(const_iter), typename T::Const_Iterator>::value),
-                       "const iterator has the wrong type");
+    //const iterator has the wrong type
+    BOOST_REQUIRE((std::is_same<decltype(const_iter), typename T::Const_Iterator>::value));
     test.clear(a);
 }
 

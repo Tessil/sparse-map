@@ -81,21 +81,24 @@ template <typename T>
 void insert(std::initializer_list<typename T::value_type> l) {
     auto map = details::default_construct_map<T>();
     for (auto dataPair : l)  map.insert(dataPair);
-    BOOST_TEST_REQUIRE(details::is_equal(map, l), "'insert' did not create exactly the values needed");
+    //'insert' did not create exactly the values needed
+    BOOST_REQUIRE(details::is_equal(map, l));
 }
 
 template <typename T>
 void iterator_insert(std::initializer_list<typename T::value_type> l) {
    auto map = details::default_construct_map<T>();
    map.insert(l.begin(), l.end());
-   BOOST_TEST_REQUIRE(details::is_equal(map, l), "'insert' with iterators did not create exactly the values needed");
+   //'insert' with iterators did not create exactly the values needed
+   BOOST_REQUIRE(details::is_equal(map, l));
 }
 
 template <typename T>
 void iterator_access(typename T::value_type single_value) {
     auto map = details::default_construct_map<T>();
     map.insert(single_value);
-    BOOST_TEST_REQUIRE( (*(map.begin()) == single_value), "iterator cannot access single value");
+    //iterator cannot access single value
+    BOOST_REQUIRE( (*(map.begin()) == single_value));
 }
 
 template <typename T>
@@ -106,9 +109,9 @@ void iterator_access_multi(std::initializer_list<typename T::value_type> l) {
     std::vector<typename T::value_type> map_sorted(map.begin(), map.end());
     std::sort(l_sorted.begin(), l_sorted.end());
     std::sort(map_sorted.begin(), map_sorted.end());
-    BOOST_TEST_REQUIRE(std::equal(l_sorted.begin(), l_sorted.end(),
-                                  map_sorted.begin()),
-                       "iterating over the map didn't work");
+    //iterating over the map didn't work
+    BOOST_REQUIRE(std::equal(l_sorted.begin(), l_sorted.end(),
+                                  map_sorted.begin()));
 }
 
 template<typename T>
@@ -120,7 +123,8 @@ void value(std::initializer_list<typename T::value_type> l, typename T::value_ty
     std::unordered_map<typename T::value_type::first_type, typename T::value_type::second_type> check(l.begin(), l.end());
     check[to_change.first] = to_change.second;
 
-    BOOST_TEST_REQUIRE(details::is_equal(map, check), "changing a single value didn't work");
+    //changing a single value didn't work
+    BOOST_REQUIRE(details::is_equal(map, check));
 }
 
 
@@ -168,8 +172,10 @@ BOOST_AUTO_TEST_CASE(full_map) {
         if (!map.contains(p.first)) return false;
         return map.at(p.first) == p.second;
     };
-    BOOST_TEST_REQUIRE(data.size() == map.size(), "size did not match");
-    BOOST_TEST_REQUIRE(std::all_of(data.begin(), data.end(), check), "map did not contain all values");
+    //size did not match
+    BOOST_REQUIRE(data.size() == map.size());
+    //map did not contain all values
+    BOOST_REQUIRE(std::all_of(data.begin(), data.end(), check));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
