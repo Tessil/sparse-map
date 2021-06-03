@@ -178,8 +178,7 @@ inline int popcount(unsigned int x) { return fallback_popcount(x); }
 
 
 /* Replacement for const_cast in sparse_array.
- * Can be overloaded for specific fancy pointers
- * (see: include/tsl/boost_offset_pointer.h).
+ * Can be overloaded for specific fancy pointers.
  * This is just a workaround.
  * The clean way would be to change the implementation to stop using const_cast.
  */

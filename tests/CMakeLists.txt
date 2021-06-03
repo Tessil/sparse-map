@@ -7,14 +7,7 @@ add_executable(tsl_sparse_map_tests "main.cpp"
         "policy_tests.cpp"
         "popcount_tests.cpp"
         "sparse_map_tests.cpp"
-        "sparse_set_tests.cpp"
-        "fancy_pointer/sparse_array_tests.cpp"
-        "fancy_pointer/sparse_hash_set_tests.cpp"
-        "fancy_pointer/CustomAllocator.h"
-        "fancy_pointer/sparse_hash_map_tests.cpp"
-        "../include/tsl/boost_offset_pointer.h"
-        "scoped_allocator_adaptor/sparse_array_tests.cpp"
-        "scoped_allocator_adaptor/sparse_hash_set_tests.cpp")
+        "sparse_set_tests.cpp")
 
 target_compile_features(tsl_sparse_map_tests PRIVATE cxx_std_11)
 
