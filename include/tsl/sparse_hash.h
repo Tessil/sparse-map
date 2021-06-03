@@ -176,7 +176,57 @@ inline int popcount(unsigned int x) { return fallback_popcount(x); }
 #endif
 }  // namespace detail_popcount
 
+
+/* Replacement for const_cast in sparse_array.
+ * Can be overloaded for specific fancy pointers.
+ * This is just a workaround.
+ * The clean way would be to change the implementation to stop using const_cast.
+ */
+    template <typename T>
+    struct Remove_Const {
+        template <typename V>
+        static T remove(V iter) {
+            return const_cast<T>(iter);
+        }
+    };
+
 namespace detail_sparse_hash {
+    /* to_address can convert any raw or fancy pointer into a raw pointer.
+     * It is needed for the allocator construct and destroy calls.
+     * This specific implementation is based on boost 1.71.0.
+     */
+#if __cplusplus >= 201400L  // with 14-features
+    template <typename T>
+    T *to_address(T *v) noexcept { return v; }
+
+    namespace fancy_ptr_detail {
+        template <typename T>
+        inline T *ptr_address(T *v, int) noexcept { return v; }
+
+        template <typename T>
+        inline auto ptr_address(const T &v, int) noexcept
+        -> decltype(std::pointer_traits<T>::to_address(v)) {
+            return std::pointer_traits<T>::to_address(v);
+        }
+        template <typename T>
+        inline auto ptr_address(const T &v, long) noexcept {
+            return fancy_ptr_detail::ptr_address(v.operator->(), 0);
+        }
+    } // namespace detail
+
+    template <typename T> inline auto to_address(const T &v) noexcept {
+        return fancy_ptr_detail::ptr_address(v, 0);
+    }
+#else // without 14-features
+    template <typename T>
+    inline T *to_address(T *v) noexcept { return v; }
+
+    template <typename T>
+    inline typename std::pointer_traits<T>::element_type * to_address(const T &v) noexcept {
+        return detail_sparse_hash::to_address(v.operator->());
+    }
+#endif
+
 
 template <typename T>
 struct make_void {
@@ -293,8 +343,11 @@ class sparse_array {
   using value_type = T;
   using size_type = std::uint_least8_t;
   using allocator_type = Allocator;
-  using iterator = value_type *;
-  using const_iterator = const value_type *;
+  using allocator_traits = std::allocator_traits<allocator_type>;
+  using pointer = typename allocator_traits::pointer;
+  using const_pointer = typename allocator_traits::const_pointer;
+  using iterator = pointer;
+  using const_iterator = const_pointer;
 
  private:
   static const size_type CAPACITY_GROWTH_STEP =
@@ -383,6 +436,9 @@ class sparse_array {
         m_capacity(0),
         m_last_array(false) {}
 
+  //needed for "is_constructible" with no parameters
+  sparse_array(std::allocator_arg_t, Allocator const&) noexcept : sparse_array() {}
+
   explicit sparse_array(bool last_bucket) noexcept
       : m_values(nullptr),
         m_bitmap_vals(0),
@@ -391,7 +447,8 @@ class sparse_array {
         m_capacity(0),
         m_last_array(last_bucket) {}
 
-  sparse_array(size_type capacity, Allocator &alloc)
+  //const Allocator needed for MoveInsertable requirement
+  sparse_array(size_type capacity, Allocator const &const_alloc)
       : m_values(nullptr),
         m_bitmap_vals(0),
         m_bitmap_deleted_vals(0),
@@ -399,13 +456,15 @@ class sparse_array {
         m_capacity(capacity),
         m_last_array(false) {
     if (m_capacity > 0) {
+      auto alloc = const_cast<Allocator&>(const_alloc);
       m_values = alloc.allocate(m_capacity);
       tsl_sh_assert(m_values !=
                     nullptr);  // allocate should throw if there is a failure
     }
   }
 
-  sparse_array(const sparse_array &other, Allocator &alloc)
+  //const Allocator needed for MoveInsertable requirement
+  sparse_array(const sparse_array &other, Allocator const &const_alloc)
       : m_values(nullptr),
         m_bitmap_vals(other.m_bitmap_vals),
         m_bitmap_deleted_vals(other.m_bitmap_deleted_vals),
@@ -417,6 +476,7 @@ class sparse_array {
       return;
     }
 
+    auto alloc = const_cast<Allocator&>(const_alloc);
     m_values = alloc.allocate(m_capacity);
     tsl_sh_assert(m_values !=
                   nullptr);  // allocate should throw if there is a failure
@@ -445,7 +505,8 @@ class sparse_array {
     other.m_capacity = 0;
   }
 
-  sparse_array(sparse_array &&other, Allocator &alloc)
+  //const Allocator needed for MoveInsertable requirement
+  sparse_array(sparse_array &&other, Allocator const &const_alloc)
       : m_values(nullptr),
         m_bitmap_vals(other.m_bitmap_vals),
         m_bitmap_deleted_vals(other.m_bitmap_deleted_vals),
@@ -457,6 +518,7 @@ class sparse_array {
       return;
     }
 
+    auto alloc = const_cast<Allocator&>(const_alloc);
     m_values = alloc.allocate(m_capacity);
     tsl_sh_assert(m_values !=
                   nullptr);  // allocate should throw if there is a failure
@@ -585,7 +647,7 @@ class sparse_array {
   }
 
   static iterator mutable_iterator(const_iterator pos) {
-    return const_cast<iterator>(pos);
+    return ::tsl::Remove_Const<iterator>::template remove<const_iterator>(pos);
   }
 
   template <class Serializer>
@@ -673,18 +735,18 @@ class sparse_array {
 
  private:
   template <typename... Args>
-  static void construct_value(allocator_type &alloc, value_type *value,
+  static void construct_value(allocator_type &alloc, pointer value,
                               Args &&... value_args) {
     std::allocator_traits<allocator_type>::construct(
-        alloc, value, std::forward<Args>(value_args)...);
+        alloc, detail_sparse_hash::to_address(value), std::forward<Args>(value_args)...);
   }
 
-  static void destroy_value(allocator_type &alloc, value_type *value) noexcept {
-    std::allocator_traits<allocator_type>::destroy(alloc, value);
+  static void destroy_value(allocator_type &alloc, pointer value) noexcept {
+    std::allocator_traits<allocator_type>::destroy(alloc, detail_sparse_hash::to_address(value));
   }
 
   static void destroy_and_deallocate_values(
-      allocator_type &alloc, value_type *values, size_type nb_values,
+      allocator_type &alloc, pointer values, size_type nb_values,
       size_type capacity_values) noexcept {
     for (size_type i = 0; i < nb_values; i++) {
       destroy_value(alloc, values + i);
@@ -808,7 +870,7 @@ class sparse_array {
                                 size_type new_capacity, Args &&... value_args) {
     tsl_sh_assert(new_capacity > m_nb_elements);
 
-    value_type *new_values = alloc.allocate(new_capacity);
+    pointer new_values = alloc.allocate(new_capacity);
     // Allocate should throw if there is a failure
     tsl_sh_assert(new_values != nullptr);
 
@@ -944,7 +1006,7 @@ class sparse_array {
   }
 
  private:
-  value_type *m_values;
+  pointer m_values;
 
   bitmap_type m_bitmap_vals;
   bitmap_type m_bitmap_deleted_vals;
@@ -1009,15 +1071,15 @@ class sparse_hash : private Allocator,
 
   using key_type = typename KeySelect::key_type;
   using value_type = ValueType;
-  using size_type = std::size_t;
-  using difference_type = std::ptrdiff_t;
   using hasher = Hash;
   using key_equal = KeyEqual;
   using allocator_type = Allocator;
   using reference = value_type &;
   using const_reference = const value_type &;
-  using pointer = value_type *;
-  using const_pointer = const value_type *;
+  using size_type = typename std::allocator_traits<allocator_type>::size_type;
+  using pointer = typename std::allocator_traits<allocator_type>::pointer;
+  using const_pointer = typename std::allocator_traits<allocator_type>::const_pointer;
+  using difference_type = typename std::allocator_traits<allocator_type>::difference_type;
   using iterator = sparse_iterator<false>;
   using const_iterator = sparse_iterator<true>;
 
@@ -1067,7 +1129,7 @@ class sparse_hash : private Allocator,
     using value_type = const typename sparse_hash::value_type;
     using difference_type = std::ptrdiff_t;
     using reference = value_type &;
-    using pointer = value_type *;
+    using pointer = typename sparse_hash::const_pointer;
 
     sparse_iterator() noexcept {}
 
@@ -1103,24 +1165,26 @@ class sparse_hash : private Allocator,
 
     reference operator*() const { return *m_sparse_array_it; }
 
+    //with fancy pointers addressof might be problematic.
     pointer operator->() const { return std::addressof(*m_sparse_array_it); }
 
     sparse_iterator &operator++() {
       tsl_sh_assert(m_sparse_array_it != nullptr);
       ++m_sparse_array_it;
 
-      if (m_sparse_array_it == m_sparse_buckets_it->end()) {
+      //vector iterator with fancy pointers have a problem with ->
+      if (m_sparse_array_it == (*m_sparse_buckets_it).end()) {
         do {
-          if (m_sparse_buckets_it->last()) {
+          if ((*m_sparse_buckets_it).last()) {
             ++m_sparse_buckets_it;
             m_sparse_array_it = nullptr;
             return *this;
           }
 
           ++m_sparse_buckets_it;
-        } while (m_sparse_buckets_it->empty());
+        } while ((*m_sparse_buckets_it).empty());
 
-        m_sparse_array_it = m_sparse_buckets_it->begin();
+        m_sparse_array_it = (*m_sparse_buckets_it).begin();
       }
 
       return *this;
@@ -1343,12 +1407,14 @@ class sparse_hash : private Allocator,
    */
   iterator begin() noexcept {
     auto begin = m_sparse_buckets_data.begin();
-    while (begin != m_sparse_buckets_data.end() && begin->empty()) {
+    //vector iterator with fancy pointers have a problem with ->
+    while (begin != m_sparse_buckets_data.end() && (*begin).empty()) {
       ++begin;
     }
 
+    //vector iterator with fancy pointers have a problem with ->
     return iterator(begin, (begin != m_sparse_buckets_data.end())
-                               ? begin->begin()
+                               ? (*begin).begin()
                                : nullptr);
   }
 
@@ -1356,12 +1422,13 @@ class sparse_hash : private Allocator,
 
   const_iterator cbegin() const noexcept {
     auto begin = m_sparse_buckets_data.cbegin();
-    while (begin != m_sparse_buckets_data.cend() && begin->empty()) {
+    //vector iterator with fancy pointers have a problem with ->
+    while (begin != m_sparse_buckets_data.cend() && (*begin).empty()) {
       ++begin;
     }
 
     return const_iterator(begin, (begin != m_sparse_buckets_data.cend())
-                                     ? begin->cbegin()
+                                     ? (*begin).cbegin()
                                      : nullptr);
   }
 
@@ -1488,23 +1555,24 @@ class sparse_hash : private Allocator,
    */
   iterator erase(iterator pos) {
     tsl_sh_assert(pos != end() && m_nb_elements > 0);
+      //vector iterator with fancy pointers have a problem with ->
     auto it_sparse_array_next =
-        pos.m_sparse_buckets_it->erase(*this, pos.m_sparse_array_it);
+        (*pos.m_sparse_buckets_it).erase(*this, pos.m_sparse_array_it);
     m_nb_elements--;
     m_nb_deleted_buckets++;
 
-    if (it_sparse_array_next == pos.m_sparse_buckets_it->end()) {
+    if (it_sparse_array_next == (*pos.m_sparse_buckets_it).end()) {
       auto it_sparse_buckets_next = pos.m_sparse_buckets_it;
       do {
         ++it_sparse_buckets_next;
       } while (it_sparse_buckets_next != m_sparse_buckets_data.end() &&
-               it_sparse_buckets_next->empty());
+              (*it_sparse_buckets_next).empty());
 
       if (it_sparse_buckets_next == m_sparse_buckets_data.end()) {
         return end();
       } else {
         return iterator(it_sparse_buckets_next,
-                        it_sparse_buckets_next->begin());
+                        (*it_sparse_buckets_next).begin());
       }
     } else {
       return iterator(pos.m_sparse_buckets_it, it_sparse_array_next);
