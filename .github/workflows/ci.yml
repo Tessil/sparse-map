@@ -15,13 +15,6 @@ jobs:
             cmake-build-type: Release
           }
         - {
-            name: linux-x64-gcc-7-no-exceptions,
-            os: ubuntu-18.04,
-            cxx: g++-7,
-            cxx-flags: -fno-exceptions,
-            cmake-build-type: Release
-          }
-        - {
             name: linux-x64-clang-9,
             os: ubuntu-18.04,
             cxx: clang++-9,
