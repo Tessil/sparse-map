@@ -1,7 +1,25 @@
 cmake_minimum_required(VERSION 3.1)
 
 project(tsl-sparse-map VERSION 0.6.2 LANGUAGES CXX)
+include(CheckCXXSourceCompiles)
 include(GNUInstallDirs)
+
+if(NOT DEFINED TSL_NO_EXCEPTIONS)
+    check_cxx_source_compiles(
+        "
+        #include <stdexcept>
+        int main() { throw std::runtime_error(\"\"); }
+        "
+        TSL_HAVE_EXCEPTIONS
+    )
+    if(TSL_HAVE_EXCEPTIONS)
+        set(_tsl_no_exceptions_default OFF)
+    else()
+        set(_tsl_no_exceptions_default ON)
+    endif()
+
+    option(TSL_NO_EXCEPTIONS "Disable exception handling, std::abort() on fatal error instead." ${_tsl_no_exceptions_default})
+endif()
 
 add_library(sparse_map INTERFACE)
 # Use tsl::sparse_map as target, more consistent with other libraries conventions (Boost, Qt, ...)
@@ -23,7 +41,15 @@ if(MSVC)
                    "$<INSTALL_INTERFACE:${CMAKE_INSTALL_DATAROOTDIR}/tsl-sparse-map.natvis>")
 endif()
 
-
+if(TSL_NO_EXCEPTIONS)
+    target_compile_definitions(sparse_map INTERFACE TSL_NO_EXCEPTIONS=1)
+else()
+    target_compile_definitions(sparse_map INTERFACE TSL_NO_EXCEPTIONS=0)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        # Allow using tsl::sparse_map where exceptions are supported but disabled globally (-fno-exceptions).
+        target_compile_options(sparse_map INTERFACE -fexceptions)
+    endif()
+endif()
 
 
 # Installation (only compatible with CMake version >= 3.3)
