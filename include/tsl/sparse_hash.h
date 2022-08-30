@@ -1833,14 +1833,6 @@ class sparse_hash : private Allocator,
   template <class K, class... Args>
   std::pair<iterator, bool> insert_impl(const K &key,
                                         Args &&...value_type_args) {
-    if (size() >= m_load_threshold_rehash) {
-      rehash_impl(GrowthPolicy::next_bucket_count());
-    } else if (size() + m_nb_deleted_buckets >=
-               m_load_threshold_clear_deleted) {
-      clear_deleted_buckets();
-    }
-    tsl_sh_assert(!m_sparse_buckets_data.empty());
-
     /**
      * We must insert the value in the first empty or deleted bucket we find. If
      * we first find a deleted bucket, we still have to continue the search
@@ -1879,14 +1871,32 @@ class sparse_hash : private Allocator,
           sparse_ibucket_first_deleted = sparse_ibucket;
           index_in_sparse_bucket_first_deleted = index_in_sparse_bucket;
         }
-      } else if (found_first_deleted_bucket) {
-        auto it = insert_in_bucket(sparse_ibucket_first_deleted,
-                                   index_in_sparse_bucket_first_deleted,
-                                   std::forward<Args>(value_type_args)...);
-        m_nb_deleted_buckets--;
-
-        return it;
       } else {
+        /**
+         * At this point we are sure that the value does not exist
+         * in the hash table.
+         * First check if we satisfy load and delete thresholds, and if not,
+         * rehash the hash table (and therefore start over). Otherwise, just
+         * insert the value into the appropriate bucket.
+         */
+        if (size() >= m_load_threshold_rehash) {
+          rehash_impl(GrowthPolicy::next_bucket_count());
+          return insert_impl(key, std::forward<Args>(value_type_args)...);
+        } else if (size() + m_nb_deleted_buckets >=
+                   m_load_threshold_clear_deleted) {
+          clear_deleted_buckets();
+          return insert_impl(key, std::forward<Args>(value_type_args)...);
+        }
+
+        if (found_first_deleted_bucket) {
+          auto it = insert_in_bucket(sparse_ibucket_first_deleted,
+                                     index_in_sparse_bucket_first_deleted,
+                                     std::forward<Args>(value_type_args)...);
+          m_nb_deleted_buckets--;
+
+          return it;
+        }
+
         return insert_in_bucket(sparse_ibucket, index_in_sparse_bucket,
                                 std::forward<Args>(value_type_args)...);
       }
