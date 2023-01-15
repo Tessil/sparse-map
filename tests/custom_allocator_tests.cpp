@@ -68,7 +68,11 @@ class custom_allocator {
 
     pointer ptr = static_cast<pointer>(std::malloc(n * sizeof(T)));
     if (ptr == nullptr) {
+#if TSL_NO_EXCEPTIONS
+      std::abort();
+#else
       throw std::bad_alloc();
+#endif
     }
 
     return ptr;
