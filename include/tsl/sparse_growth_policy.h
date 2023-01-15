@@ -44,13 +44,17 @@
 #endif
 
 #if TSL_NO_EXCEPTIONS
-#include <cstdio>
 #include <cstdlib>
+#ifdef TSL_DEBUG
+#include <cstdio>
 #define TSL_SH_THROW_OR_ABORT(ex, msg)        \
   do {                                        \
     std::fprintf(stderr, "error: %s\n", msg); \
     std::abort();                             \
   } while (0)
+#else
+#define TSL_SH_THROW_OR_ABORT(ex, msg) std::abort()
+#endif
 #define TSL_SH_TRY if (true)
 #define TSL_SH_CATCH(x) if (false)
 #define TSL_SH_RETRHOW
