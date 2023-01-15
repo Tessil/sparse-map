@@ -32,9 +32,37 @@
 #include <iterator>
 #include <limits>
 #include <ratio>
-#include <stdexcept>
 
-#include "exceptions.h"
+
+#ifndef TSL_NO_EXCEPTIONS
+#if (defined(__cpp_exceptions) || defined(__EXCEPTIONS) || \
+     (defined(_MSC_VER) && defined(_CPPUNWIND)))
+#define TSL_NO_EXCEPTIONS 0
+#else
+#define TSL_NO_EXCEPTIONS 1
+#endif
+#endif
+
+#if TSL_NO_EXCEPTIONS
+#include <cstdio>
+#include <cstdlib>
+
+#define TSL_SM_THROW_OR_TERMINATE(ex, msg)    \
+  do {                                        \
+    std::fprintf(stderr, "error: %s\n", msg); \
+    std::abort();                             \
+  } while (0)
+#define TSL_SM_TRY if (true)
+#define TSL_SM_CATCH(x) if (false)
+#define TSL_SM_RETRHOW
+#else
+#include <stdexcept>  // IWYU pragma: export
+
+#define TSL_SM_THROW_OR_TERMINATE(ex, msg) throw ex(msg)
+#define TSL_SM_TRY try
+#define TSL_SM_CATCH(x) catch (x)
+#define TSL_SM_RETRHOW throw
+#endif
 
 namespace tsl {
 namespace sh {
