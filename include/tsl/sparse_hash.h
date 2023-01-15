@@ -38,7 +38,6 @@
 #include <utility>
 #include <vector>
 
-#include "exceptions.h"
 #include "sparse_growth_policy.h"
 
 #ifdef __INTEL_COMPILER
@@ -224,14 +223,14 @@ static T numeric_cast(U value,
                       const char *error_message = "numeric_cast() failed.") {
   T ret = static_cast<T>(value);
   if (static_cast<U>(ret) != value) {
-    TSL_SM_THROW_OR_TERMINATE(std::runtime_error, error_message);
+    TSL_SH_THROW_OR_ABORT(std::runtime_error, error_message);
   }
 
   const bool is_same_signedness =
       (std::is_unsigned<T>::value && std::is_unsigned<U>::value) ||
       (std::is_signed<T>::value && std::is_signed<U>::value);
   if (!is_same_signedness && (ret < T{}) != (value < U{})) {
-    TSL_SM_THROW_OR_TERMINATE(std::runtime_error, error_message);
+    TSL_SH_THROW_OR_ABORT(std::runtime_error, error_message);
   }
 
   return ret;
@@ -419,15 +418,15 @@ class sparse_array {
     m_values = alloc.allocate(m_capacity);
     tsl_sh_assert(m_values !=
                   nullptr);  // allocate should throw if there is a failure
-    TSL_SM_TRY {
+    TSL_SH_TRY {
       for (size_type i = 0; i < other.m_nb_elements; i++) {
         construct_value(alloc, m_values + i, other.m_values[i]);
         m_nb_elements++;
       }
     }
-    TSL_SM_CATCH(...) {
+    TSL_SH_CATCH(...) {
       clear(alloc);
-      TSL_SM_RETRHOW;
+      TSL_SH_RETRHOW;
     }
   }
 
@@ -460,15 +459,15 @@ class sparse_array {
     m_values = alloc.allocate(m_capacity);
     tsl_sh_assert(m_values !=
                   nullptr);  // allocate should throw if there is a failure
-    TSL_SM_TRY {
+    TSL_SH_TRY {
       for (size_type i = 0; i < other.m_nb_elements; i++) {
         construct_value(alloc, m_values + i, std::move(other.m_values[i]));
         m_nb_elements++;
       }
     }
-    TSL_SM_CATCH(...) {
+    TSL_SH_CATCH(...) {
       clear(alloc);
-      TSL_SM_RETRHOW;
+      TSL_SH_RETRHOW;
     }
   }
 
@@ -616,7 +615,7 @@ class sparse_array {
         deserialize_value<slz_size_type>(deserializer);
 
     if (sparse_bucket_size > BITMAP_NB_BITS) {
-      TSL_SM_THROW_OR_TERMINATE(
+      TSL_SH_THROW_OR_ABORT(
           std::runtime_error,
           "Deserialized sparse_bucket_size is too big for the platform. "
           "Maximum should be BITMAP_NB_BITS.");
@@ -636,16 +635,16 @@ class sparse_array {
         sparse_bucket_size, "Deserialized sparse_bucket_size is too big.");
     sarray.m_values = alloc.allocate(sarray.m_capacity);
 
-    TSL_SM_TRY {
+    TSL_SH_TRY {
       for (size_type ivalue = 0; ivalue < sarray.m_capacity; ivalue++) {
         construct_value(alloc, sarray.m_values + ivalue,
                         deserialize_value<value_type>(deserializer));
         sarray.m_nb_elements++;
       }
     }
-    TSL_SM_CATCH(...) {
+    TSL_SH_CATCH(...) {
       sarray.clear(alloc);
-      TSL_SM_RETRHOW;
+      TSL_SH_RETRHOW;
     }
 
     return sarray;
@@ -792,16 +791,16 @@ class sparse_array {
       destroy_value(alloc, m_values + i - 1);
     }
 
-    TSL_SM_TRY {
+    TSL_SH_TRY {
       construct_value(alloc, m_values + offset,
                       std::forward<Args>(value_args)...);
     }
-    TSL_SM_CATCH(...) {
+    TSL_SH_CATCH(...) {
       for (size_type i = offset; i < m_nb_elements; i++) {
         construct_value(alloc, m_values + i, std::move(m_values[i + 1]));
         destroy_value(alloc, m_values + i + 1);
       }
-      TSL_SM_RETRHOW;
+      TSL_SH_RETRHOW;
     }
   }
 
@@ -816,13 +815,13 @@ class sparse_array {
     // Allocate should throw if there is a failure
     tsl_sh_assert(new_values != nullptr);
 
-    TSL_SM_TRY {
+    TSL_SH_TRY {
       construct_value(alloc, new_values + offset,
                       std::forward<Args>(value_args)...);
     }
-    TSL_SM_CATCH(...) {
+    TSL_SH_CATCH(...) {
       alloc.deallocate(new_values, new_capacity);
-      TSL_SM_RETRHOW;
+      TSL_SH_RETRHOW;
     }
 
     // Should not throw from here
@@ -852,7 +851,7 @@ class sparse_array {
     tsl_sh_assert(new_values != nullptr);
 
     size_type nb_new_values = 0;
-    TSL_SM_TRY {
+    TSL_SH_TRY {
       for (size_type i = 0; i < offset; i++) {
         construct_value(alloc, new_values + i, m_values[i]);
         nb_new_values++;
@@ -867,10 +866,10 @@ class sparse_array {
         nb_new_values++;
       }
     }
-    TSL_SM_CATCH(...) {
+    TSL_SH_CATCH(...) {
       destroy_and_deallocate_values(alloc, new_values, nb_new_values,
                                     new_capacity);
-      TSL_SM_RETRHOW;
+      TSL_SH_RETRHOW;
     }
 
     tsl_sh_assert(nb_new_values == m_nb_elements + 1);
@@ -928,7 +927,7 @@ class sparse_array {
     tsl_sh_assert(new_values != nullptr);
 
     size_type nb_new_values = 0;
-    TSL_SM_TRY {
+    TSL_SH_TRY {
       for (size_type i = 0; i < m_nb_elements; i++) {
         if (i != offset) {
           construct_value(alloc, new_values + nb_new_values, m_values[i]);
@@ -936,10 +935,10 @@ class sparse_array {
         }
       }
     }
-    TSL_SM_CATCH(...) {
+    TSL_SH_CATCH(...) {
       destroy_and_deallocate_values(alloc, new_values, nb_new_values,
                                     new_capacity);
-      TSL_SM_RETRHOW;
+      TSL_SH_RETRHOW;
     }
 
     tsl_sh_assert(nb_new_values == m_nb_elements - 1);
@@ -1169,8 +1168,8 @@ class sparse_hash : private Allocator,
         m_nb_elements(0),
         m_nb_deleted_buckets(0) {
     if (m_bucket_count > max_bucket_count()) {
-      TSL_SM_THROW_OR_TERMINATE(std::length_error,
-                                "The map exceeds its maximum size.");
+      TSL_SH_THROW_OR_ABORT(std::length_error,
+                            "The map exceeds its maximum size.");
     }
 
     if (m_bucket_count > 0) {
@@ -1604,7 +1603,7 @@ class sparse_hash : private Allocator,
     if (it != cend()) {
       return it.value();
     } else {
-      TSL_SM_THROW_OR_TERMINATE(std::out_of_range, "Couldn't find key.");
+      TSL_SH_THROW_OR_ABORT(std::out_of_range, "Couldn't find key.");
     }
   }
 
@@ -1808,15 +1807,15 @@ class sparse_hash : private Allocator,
   void copy_buckets_from(const sparse_hash &other) {
     m_sparse_buckets_data.reserve(other.m_sparse_buckets_data.size());
 
-    TSL_SM_TRY {
+    TSL_SH_TRY {
       for (const auto &bucket : other.m_sparse_buckets_data) {
         m_sparse_buckets_data.emplace_back(bucket,
                                            static_cast<Allocator &>(*this));
       }
     }
-    TSL_SM_CATCH(...) {
+    TSL_SH_CATCH(...) {
       clear();
-      TSL_SM_RETRHOW;
+      TSL_SH_RETRHOW;
     }
 
     tsl_sh_assert(m_sparse_buckets_data.empty() ||
@@ -1826,15 +1825,15 @@ class sparse_hash : private Allocator,
   void move_buckets_from(sparse_hash &&other) {
     m_sparse_buckets_data.reserve(other.m_sparse_buckets_data.size());
 
-    TSL_SM_TRY {
+    TSL_SH_TRY {
       for (auto &&bucket : other.m_sparse_buckets_data) {
         m_sparse_buckets_data.emplace_back(std::move(bucket),
                                            static_cast<Allocator &>(*this));
       }
     }
-    TSL_SM_CATCH(...) {
+    TSL_SH_CATCH(...) {
       clear();
-      TSL_SM_RETRHOW;
+      TSL_SH_RETRHOW;
     }
 
     tsl_sh_assert(m_sparse_buckets_data.empty() ||
@@ -2102,9 +2101,9 @@ class sparse_hash : private Allocator,
     // For now we only have one version of the serialization protocol.
     // If it doesn't match there is a problem with the file.
     if (version != SERIALIZATION_PROTOCOL_VERSION) {
-      TSL_SM_THROW_OR_TERMINATE(std::runtime_error,
-                                "Can't deserialize the sparse_map/set. The "
-                                "protocol version header is invalid.");
+      TSL_SH_THROW_OR_ABORT(std::runtime_error,
+                            "Can't deserialize the sparse_map/set. The "
+                            "protocol version header is invalid.");
     }
 
     const slz_size_type bucket_count_ds =
@@ -2132,16 +2131,15 @@ class sparse_hash : private Allocator,
       // GrowthPolicy should not modify the bucket count we got from
       // deserialization
       if (m_bucket_count != bucket_count_ds) {
-        TSL_SM_THROW_OR_TERMINATE(
-            std::runtime_error,
-            "The GrowthPolicy is not the same even though "
-            "hash_compatible is true.");
+        TSL_SH_THROW_OR_ABORT(std::runtime_error,
+                              "The GrowthPolicy is not the same even though "
+                              "hash_compatible is true.");
       }
 
       if (nb_sparse_buckets !=
           sparse_array::nb_sparse_buckets(m_bucket_count)) {
-        TSL_SM_THROW_OR_TERMINATE(std::runtime_error,
-                                  "Deserialized nb_sparse_buckets is invalid.");
+        TSL_SH_THROW_OR_ABORT(std::runtime_error,
+                              "Deserialized nb_sparse_buckets is invalid.");
       }
 
       m_nb_elements = numeric_cast<size_type>(
@@ -2164,7 +2162,7 @@ class sparse_hash : private Allocator,
 
       this->max_load_factor(max_load_factor);
       if (load_factor() > this->max_load_factor()) {
-        TSL_SM_THROW_OR_TERMINATE(
+        TSL_SH_THROW_OR_ABORT(
             std::runtime_error,
             "Invalid max_load_factor. Check that the serializer and "
             "deserializer support "
