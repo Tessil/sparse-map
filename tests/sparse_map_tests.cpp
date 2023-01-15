@@ -635,35 +635,35 @@ BOOST_AUTO_TEST_CASE(test_modify_value_through_iterator) {
  * constructor
  */
 BOOST_AUTO_TEST_CASE(test_extreme_bucket_count_value_construction) {
-  BOOST_CHECK_THROW(
+  TSL_SH_CHECK_THROW(
       (tsl::sparse_map<int, int, std::hash<int>, std::equal_to<int>,
                        std::allocator<std::pair<int, int>>,
                        tsl::sh::power_of_two_growth_policy<2>>(
           std::numeric_limits<std::size_t>::max())),
       std::length_error);
 
-  BOOST_CHECK_THROW(
+  TSL_SH_CHECK_THROW(
       (tsl::sparse_map<int, int, std::hash<int>, std::equal_to<int>,
                        std::allocator<std::pair<int, int>>,
                        tsl::sh::power_of_two_growth_policy<2>>(
           std::numeric_limits<std::size_t>::max() / 2 + 1)),
       std::length_error);
 
-  BOOST_CHECK_THROW(
+  TSL_SH_CHECK_THROW(
       (tsl::sparse_map<int, int, std::hash<int>, std::equal_to<int>,
                        std::allocator<std::pair<int, int>>,
                        tsl::sh::prime_growth_policy>(
           std::numeric_limits<std::size_t>::max())),
       std::length_error);
 
-  BOOST_CHECK_THROW(
+  TSL_SH_CHECK_THROW(
       (tsl::sparse_map<int, int, std::hash<int>, std::equal_to<int>,
                        std::allocator<std::pair<int, int>>,
                        tsl::sh::prime_growth_policy>(
           std::numeric_limits<std::size_t>::max() / 2)),
       std::length_error);
 
-  BOOST_CHECK_THROW(
+  TSL_SH_CHECK_THROW(
       (tsl::sparse_map<int, int, std::hash<int>, std::equal_to<int>,
                        std::allocator<std::pair<int, int>>,
                        tsl::sh::mod_growth_policy<>>(
@@ -885,7 +885,7 @@ BOOST_AUTO_TEST_CASE(test_at) {
 
   BOOST_CHECK_EQUAL(map.at(0), 10);
   BOOST_CHECK_EQUAL(map.at(-2), 20);
-  BOOST_CHECK_THROW(map.at(1), std::out_of_range);
+  TSL_SH_CHECK_THROW(map.at(1), std::out_of_range);
 }
 
 /**
@@ -1240,7 +1240,7 @@ BOOST_AUTO_TEST_CASE(test_heterogeneous_lookups) {
 
   BOOST_CHECK_EQUAL(map.at(addr1), 4);
   BOOST_CHECK_EQUAL(map.at(addr2), 5);
-  BOOST_CHECK_THROW(map.at(addr_unknown), std::out_of_range);
+  TSL_SH_CHECK_THROW(map.at(addr_unknown), std::out_of_range);
 
   BOOST_REQUIRE(map.find(addr1) != map.end());
   BOOST_CHECK_EQUAL(*map.find(addr1)->first, 1);
@@ -1285,8 +1285,8 @@ BOOST_AUTO_TEST_CASE(test_empty_map) {
   BOOST_CHECK(!map.contains(""));
   BOOST_CHECK(!map.contains("test"));
 
-  BOOST_CHECK_THROW(map.at(""), std::out_of_range);
-  BOOST_CHECK_THROW(map.at("test"), std::out_of_range);
+  TSL_SH_CHECK_THROW(map.at(""), std::out_of_range);
+  TSL_SH_CHECK_THROW(map.at("test"), std::out_of_range);
 
   auto range = map.equal_range("test");
   BOOST_CHECK(range.first == range.second);

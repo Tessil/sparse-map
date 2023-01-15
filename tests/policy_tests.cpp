@@ -30,6 +30,8 @@
 #include <ratio>
 #include <stdexcept>
 
+#include "utils.h"
+
 BOOST_AUTO_TEST_SUITE(test_policy)
 
 using test_types =
@@ -41,14 +43,14 @@ using test_types =
 BOOST_AUTO_TEST_CASE_TEMPLATE(test_policy, Policy, test_types) {
   // Call next_bucket_count() on the policy until we reach its
   // max_bucket_count()
-  bool exception_thrown = false;
-
   std::size_t bucket_count = 0;
   Policy policy(bucket_count);
 
   BOOST_CHECK_EQUAL(policy.bucket_for_hash(0), 0);
   BOOST_CHECK_EQUAL(bucket_count, 0);
 
+#if !TSL_NO_EXCEPTIONS
+  bool exception_thrown = false;
   try {
     while (true) {
       const std::size_t previous_bucket_count = bucket_count;
@@ -64,6 +66,7 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_policy, Policy, test_types) {
   }
 
   BOOST_CHECK(exception_thrown);
+#endif
 }
 
 BOOST_AUTO_TEST_CASE_TEMPLATE(test_policy_min_bucket_count, Policy,
@@ -85,10 +88,10 @@ BOOST_AUTO_TEST_CASE_TEMPLATE(test_policy_max_bucket_count, Policy,
   Policy policy2(bucket_count);
 
   bucket_count = std::numeric_limits<std::size_t>::max();
-  BOOST_CHECK_THROW((Policy(bucket_count)), std::length_error);
+  TSL_SH_CHECK_THROW((Policy(bucket_count)), std::length_error);
 
   bucket_count = policy.max_bucket_count() + 1;
-  BOOST_CHECK_THROW((Policy(bucket_count)), std::length_error);
+  TSL_SH_CHECK_THROW((Policy(bucket_count)), std::length_error);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

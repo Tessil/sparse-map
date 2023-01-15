@@ -34,6 +34,22 @@
 #include <string>
 #include <utility>
 
+#if TSL_NO_EXCEPTIONS
+#define TSL_SH_CHECK_THROW(S, E)
+#define TSL_SH_CHECK_THROW_EITHER(S, E1, E2)
+#else
+#define TSL_SH_CHECK_THROW(S, E) BOOST_CHECK_THROW(S, E)
+#define TSL_SH_CHECK_THROW_EITHER(S, E1, E2) \
+  do {                                       \
+    try {                                    \
+      S;                                     \
+      BOOST_CHECK(false);                    \
+    } catch (const E1&) {                    \
+    } catch (const E2&) {                    \
+    }                                        \
+  } while (0)
+#endif
+
 template <typename T>
 class identity_hash {
  public:
@@ -236,17 +252,35 @@ class utils {
 
   template <typename HMap>
   static HMap get_filled_hash_map(std::size_t nb_elements);
+
+  template <typename T, typename U>
+  static T numeric_cast(U value,
+                        const char* error_message = "numeric_cast() failed.") {
+    T ret = static_cast<T>(value);
+    if (static_cast<U>(ret) != value) {
+      TSL_SH_THROW_OR_ABORT(std::runtime_error, error_message);
+    }
+
+    const bool is_same_signedness =
+        (std::is_unsigned<T>::value && std::is_unsigned<U>::value) ||
+        (std::is_signed<T>::value && std::is_signed<U>::value);
+    if (!is_same_signedness && (ret < T{}) != (value < U{})) {
+      TSL_SH_THROW_OR_ABORT(std::runtime_error, error_message);
+    }
+
+    return ret;
+  }
 };
 
 template <>
 inline std::int64_t utils::get_key<std::int64_t>(std::size_t counter) {
-  return boost::numeric_cast<std::int64_t>(counter);
+  return utils::numeric_cast<std::int64_t>(counter);
 }
 
 template <>
 inline self_reference_member_test utils::get_key<self_reference_member_test>(
     std::size_t counter) {
-  return self_reference_member_test(boost::numeric_cast<std::int64_t>(counter));
+  return self_reference_member_test(utils::numeric_cast<std::int64_t>(counter));
 }
 
 template <>
@@ -256,24 +290,24 @@ inline std::string utils::get_key<std::string>(std::size_t counter) {
 
 template <>
 inline move_only_test utils::get_key<move_only_test>(std::size_t counter) {
-  return move_only_test(boost::numeric_cast<std::int64_t>(counter));
+  return move_only_test(utils::numeric_cast<std::int64_t>(counter));
 }
 
 template <>
 inline copy_only_test utils::get_key<copy_only_test>(std::size_t counter) {
-  return copy_only_test(boost::numeric_cast<std::int64_t>(counter));
+  return copy_only_test(utils::numeric_cast<std::int64_t>(counter));
 }
 
 template <>
 inline std::int64_t utils::get_value<std::int64_t>(std::size_t counter) {
-  return boost::numeric_cast<std::int64_t>(counter * 2);
+  return utils::numeric_cast<std::int64_t>(counter * 2);
 }
 
 template <>
 inline self_reference_member_test utils::get_value<self_reference_member_test>(
     std::size_t counter) {
   return self_reference_member_test(
-      boost::numeric_cast<std::int64_t>(counter * 2));
+      utils::numeric_cast<std::int64_t>(counter * 2));
 }
 
 template <>
@@ -283,12 +317,12 @@ inline std::string utils::get_value<std::string>(std::size_t counter) {
 
 template <>
 inline move_only_test utils::get_value<move_only_test>(std::size_t counter) {
-  return move_only_test(boost::numeric_cast<std::int64_t>(counter * 2));
+  return move_only_test(utils::numeric_cast<std::int64_t>(counter * 2));
 }
 
 template <>
 inline copy_only_test utils::get_value<copy_only_test>(std::size_t counter) {
-  return copy_only_test(boost::numeric_cast<std::int64_t>(counter * 2));
+  return copy_only_test(utils::numeric_cast<std::int64_t>(counter * 2));
 }
 
 template <typename HMap>
