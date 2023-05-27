@@ -1072,8 +1072,13 @@ class sparse_hash : private Allocator,
     using iterator_category = std::forward_iterator_tag;
     using value_type = typename sparse_hash::value_type;
     using difference_type = std::ptrdiff_t;
-    using reference = value_type &;
-    using pointer = value_type *;
+    using reference =
+        typename std::conditional<IsConst,
+                                  typename sparse_hash::const_reference,
+                                  typename sparse_hash::reference>::type;
+    using pointer =
+        typename std::conditional<IsConst, typename sparse_hash::const_pointer,
+                                  typename sparse_hash::pointer>::type;
 
     sparse_iterator() noexcept {}
 
