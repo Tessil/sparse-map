@@ -100,10 +100,9 @@ class sparse_set {
     key_type &operator()(Key &key) noexcept { return key; }
   };
 
-  using ht =
-      detail_sparse_hash::sparse_hash<Key, KeySelect, void, Hash, KeyEqual,
-                                      Allocator, GrowthPolicy, ExceptionSafety,
-                                      Sparsity, tsl::sh::probing::quadratic>;
+  using ht = detail_sparse_hash::sparse_hash<
+      Key, KeySelect, void, Hash, KeyEqual, Allocator, GrowthPolicy,
+      ExceptionSafety, Sparsity, tsl::sh::probing::quadratic, Key>;
 
  public:
   using key_type = typename ht::key_type;

@@ -993,7 +993,7 @@ class sparse_array {
 template <class ValueType, class KeySelect, class ValueSelect, class Hash,
           class KeyEqual, class Allocator, class GrowthPolicy,
           tsl::sh::exception_safety ExceptionSafety, tsl::sh::sparsity Sparsity,
-          tsl::sh::probing Probing>
+          tsl::sh::probing Probing, class ValueTypeIt>
 class sparse_hash : private Allocator,
                     private Hash,
                     private KeyEqual,
@@ -1026,6 +1026,12 @@ class sparse_hash : private Allocator,
   using const_pointer = const value_type *;
   using iterator = sparse_iterator<false>;
   using const_iterator = sparse_iterator<true>;
+
+  using value_type_it = ValueTypeIt;
+  using reference_it = value_type_it &;
+  using const_reference_it = const value_type_it &;
+  using pointer_it = value_type_it *;
+  using const_pointer_it = const value_type_it *;
 
  private:
   using sparse_array =
@@ -1070,15 +1076,16 @@ class sparse_hash : private Allocator,
 
    public:
     using iterator_category = std::forward_iterator_tag;
-    using value_type = typename sparse_hash::value_type;
+    using value_type = typename sparse_hash::value_type_it;
     using difference_type = std::ptrdiff_t;
     using reference =
         typename std::conditional<IsConst,
-                                  typename sparse_hash::const_reference,
-                                  typename sparse_hash::reference>::type;
+                                  typename sparse_hash::const_reference_it,
+                                  typename sparse_hash::reference_it>::type;
     using pointer =
-        typename std::conditional<IsConst, typename sparse_hash::const_pointer,
-                                  typename sparse_hash::pointer>::type;
+        typename std::conditional<IsConst,
+                                  typename sparse_hash::const_pointer_it,
+                                  typename sparse_hash::pointer_it>::type;
 
     sparse_iterator() noexcept {}
 
@@ -1112,9 +1119,13 @@ class sparse_hash : private Allocator,
       return U()(*m_sparse_array_it);
     }
 
-    reference operator*() const { return *m_sparse_array_it; }
+    reference operator*() const {
+      return reinterpret_cast<reference>(*m_sparse_array_it);
+    }
 
-    pointer operator->() const { return std::addressof(*m_sparse_array_it); }
+    pointer operator->() const {
+      return reinterpret_cast<pointer>(std::addressof(*m_sparse_array_it));
+    }
 
     sparse_iterator &operator++() {
       tsl_sh_assert(m_sparse_array_it != nullptr);
