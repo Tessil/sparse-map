@@ -9,50 +9,50 @@ jobs:
       matrix:
         config:
         - {
-            name: linux-x64-gcc-7,
-            os: ubuntu-18.04,
-            cxx: g++-7,
+            name: linux-x64-gcc,
+            os: ubuntu-latest,
+            cxx: g++,
             cmake-build-type: Release
           }
         - {
-            name: linux-x64-gcc-7-no-exceptions,
-            os: ubuntu-18.04,
-            cxx: g++-7,
+            name: linux-x64-clang,
+            os: ubuntu-latest,
+            cxx: clang++,
+            cmake-build-type: Release
+          }
+        - {
+            name: linux-x64-gcc-no-exceptions,
+            os: ubuntu-latest,
+            cxx: g++,
             cxx-flags: -fno-exceptions,
             cmake-build-type: Release
           }
         - {
-            name: linux-x64-clang-9,
-            os: ubuntu-18.04,
-            cxx: clang++-9,
+            name: linux-x64-gcc-coverage,
+            os: ubuntu-latest,
+            cxx: g++,
+            cxx-flags: --coverage,
+            gcov-tool: gcov,
+            cmake-build-type: Debug
+          }
+        - {
+            name: linux-x64-clang-sanitize,
+            os: ubuntu-latest,
+            cxx: clang++,
+            cxx-flags: "-fsanitize=address,undefined",
             cmake-build-type: Release
           }
         - {
             name: macos-x64-gcc,
-            os:  macos-10.15,
+            os:  macos-latest,
             cxx: g++,
             cmake-build-type: Release
           }
         - {
             name: macos-x64-clang,
-            os:  macos-10.15,
+            os:  macos-latest,
             cxx: clang++,
             cmake-build-type: Release
-          }
-        - {
-            name: linux-x64-clang-12-sanitize,
-            os: ubuntu-20.04,
-            cxx: clang++-12,
-            cxx-flags: "-fsanitize=address,undefined",
-            cmake-build-type: Release
-          }
-        - {
-            name: linux-x64-gcc-10-coverage,
-            os: ubuntu-20.04,
-            cxx: g++-10,
-            cxx-flags: --coverage,
-            gcov-tool: gcov-10,
-            cmake-build-type: Debug
           }
         - {
             name: windows-x64-vs-2019,
