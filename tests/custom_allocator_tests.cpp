@@ -55,6 +55,7 @@ class custom_allocator {
 
   custom_allocator() = default;
   custom_allocator(const custom_allocator&) = default;
+  custom_allocator& operator=(const custom_allocator&) = default;
 
   template <typename U>
   custom_allocator(const custom_allocator<U>&) {}
