@@ -103,6 +103,15 @@ class sparse_map {
     key_type &operator()(std::pair<Key, T> &key_value) noexcept {
       return key_value.first;
     }
+
+    const key_type &operator()(
+        const std::pair<const Key, T> &key_value) const noexcept {
+      return key_value.first;
+    }
+
+    const key_type &operator()(std::pair<const Key, T> &key_value) noexcept {
+      return key_value.first;
+    }
   };
 
   class ValueSelect {
@@ -121,7 +130,8 @@ class sparse_map {
 
   using ht = detail_sparse_hash::sparse_hash<
       std::pair<Key, T>, KeySelect, ValueSelect, Hash, KeyEqual, Allocator,
-      GrowthPolicy, ExceptionSafety, Sparsity, tsl::sh::probing::quadratic>;
+      GrowthPolicy, ExceptionSafety, Sparsity, tsl::sh::probing::quadratic,
+      std::pair<const Key, T>>;
 
  public:
   using key_type = typename ht::key_type;
