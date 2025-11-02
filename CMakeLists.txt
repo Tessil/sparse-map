@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(tsl-sparse-map VERSION 0.6.2 LANGUAGES CXX)
+project(tsl-sparse-map VERSION 0.7.0 LANGUAGES CXX)
 include(GNUInstallDirs)
 
 add_library(sparse_map INTERFACE)
